@@ -1,11 +1,8 @@
-import TicTacToe
+
 import chess_mctsnn
-from MCTSNN import AMCTS
-from AlphaZero import AlphaZero
 import torch
 
 from chessModel import ChessNet
-from model import Net
 import numpy as np
 import chess
 from PGNDataset import PGNDataset
@@ -13,46 +10,46 @@ import pickle
 from boardPlus import BoardPlus
 from chessGUI import chessGUI
 
-dataset = PGNDataset()
-dataset.encode_directory("dataset", "train_converted_dataset")
+# dataset = PGNDataset()
+# dataset.encode_directory("dataset", "train_converted_dataset", 2000)
 
-# device = torch.device("cpu")
-# print("Using device:", device)
-# net = ChessNet(128, 30, device=device)
-# optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
-#
-# net.load_state_dict(torch.load("learn_files/chess_model0_epoch14.pt"))
-# optimizer.load_state_dict(torch.load("learn_files/chess_optimizer0_epoch14.pt"))
-#
-# board = BoardPlus()
+device = torch.device("cpu")
+print("Using device:", device)
+net = ChessNet(80, 30, device=device)
+optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
+
+net.load_state_dict(torch.load("learn_files/chess_model3_epoch12.pt"))
+optimizer.load_state_dict(torch.load("learn_files/chess_optimizer3_epoch12.pt"))
+
+board = BoardPlus()
 
 
-# @torch.no_grad()
-# def algorithm():
-#     prob = chess_mctsnn.AMCTS(100, net).search(board)
-#     move_id = np.argmax(prob)
-#     move_mcts = board.decode_move(move_id)
-#     move_mcts = board.change_move_perspective(move_mcts)
-#
-#     temp_board = board.__copy__()
-#     temp_board.change_perspective()
-#     value, policy = net(
-#         torch.tensor(temp_board.encode(), device=device).unsqueeze(0).float()
-#     )
-#
-#     value = value.item()
-#     policy = torch.softmax(policy, dim=1).squeeze(0).cpu().numpy()
-#     policy *= temp_board.get_available_moves_mask()
-#     policy /= policy.sum()
-#     move_id_x = np.argmax(policy)
-#     move_mcts_x = temp_board.decode_move(move_id_x)
-#     move_mcts_x = board.change_move_perspective(move_mcts_x)
-#     print(f"Move: {move_mcts_x}, Value: {value}")
-#     print(move_mcts)
-#
-#     return move_mcts
-#
-#
-# game = chessGUI(board)
-# game.add_computer_algorithm_listener(algorithm)
-# game.run()
+@torch.no_grad()
+def algorithm():
+    # prob = chess_mctsnn.AMCTS(200, net).search(board)
+    # move_id = np.argmax(prob)
+    # move_mcts = board.decode_move(move_id)
+    # move_mcts = board.change_move_perspective(move_mcts)
+
+    temp_board = board.__copy__()
+    temp_board.change_perspective()
+    value, policy = net(
+        torch.tensor(temp_board.encode(), device=device).unsqueeze(0).float()
+    )
+
+    value = value.item()
+    policy = torch.softmax(policy, dim=1).squeeze(0).cpu().numpy()
+    policy *= temp_board.get_available_moves_mask()
+    policy /= policy.sum()
+    move_id_x = np.argmax(policy)
+    move_mcts_x = temp_board.decode_move(move_id_x)
+    move_mcts_x = board.change_move_perspective(move_mcts_x)
+    print(f"Move: {move_mcts_x}, Value: {value}")
+    print(move_mcts)
+
+    return move
+
+
+game = chessGUI(board)
+game.add_computer_algorithm_listener(algorithm)
+game.run()

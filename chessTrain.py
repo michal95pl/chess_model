@@ -34,10 +34,10 @@ def train(net, optimizer, device, epochs=50):
                 try:
                     for game_data in data:
                         moves, boards, win = game_data
-                        moves, boards, win = shuffle_arrays(moves, boards, win)
 
                         if len(moves) == 0 or len(boards) == 0 or len(win) == 0:
                             continue
+                        moves, boards, win = shuffle_arrays(moves, boards, win)
                         moves = torch.tensor(moves, device=device).float()
                         boards = torch.tensor(boards, device=device).float()
                         win = torch.tensor(win, device=device).float()
@@ -65,8 +65,8 @@ def train(net, optimizer, device, epochs=50):
                     print(f"Error learning from file {file_name}: {e}")
                 finally:
                     pbar.update(1)
-        torch.save(net.state_dict(), f"learn_files/chess_model0_epoch{i}.pt")
-        torch.save(optimizer.state_dict(), f"learn_files/chess_optimizer0_epoch{i}.pt")
+        torch.save(net.state_dict(), f"learn_files/chess_model3_epoch{i}.pt")
+        torch.save(optimizer.state_dict(), f"learn_files/chess_optimizer3_epoch{i}.pt")
 
 
 def show_5_largest(arr):
@@ -168,11 +168,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # device = torch.device("cpu")
 print("Using device:", device)
-net = ChessNet(128, 30, device=device)
+net = ChessNet(80, 30, device=device)
 optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
 
-# net.load_state_dict(torch.load("learn_files/chess_model0_epoch25.pt"))
-# optimizer.load_state_dict(torch.load("learn_files/chess_optimizer0_epoch25.pt"))
+net.load_state_dict(torch.load("learn_files/chess_model2_epoch15.pt"))
+optimizer.load_state_dict(torch.load("learn_files/chess_optimizer2_epoch15.pt"))
 
 # test(net, optimizer)
 train(net, optimizer, device)

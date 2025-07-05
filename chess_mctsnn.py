@@ -60,6 +60,10 @@ class AMCTS:
                 value = value.item()
                 policy = torch.softmax(policy, dim=1).squeeze(0).cpu().numpy()
                 policy *= best_leaf.state.get_available_moves_mask()
+                if np.sum(policy) == 0:
+                    # neural network returned no valid moves
+                    self.__backpropagation(best_leaf, -1)
+                    continue
                 policy /= policy.sum()
 
                 self.__backpropagation(best_leaf, value)

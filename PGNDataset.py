@@ -75,17 +75,18 @@ class PGNDataset:
                         break
                     game_data.append(self.encode_game(game))
                     i += 1
-                    if i % games_in_file == 0:
+                    if i % games_in_file == 0 and game_data:
                         game_data_path = f"{output_path}/{i // games_in_file}.rdg"
                         with open(game_data_path, "wb") as f:
                             pickle.dump(game_data, f)
                         game_data = []
                         print("[INFO] saved:", game_data_path)
+                        print("[INFO] saved:", i, "games")
                 pgn.close()
 
-                if game_data:
-                    game_data_path = f"{output_path}/{i // games_in_file}.rdg"
-                    with open(game_data_path, "wb") as f:
-                        pickle.dump(game_data, f)
-                    print("[INFO] saved:", game_data_path)
-                    game_data = []
+        if game_data:
+            game_data_path = f"{output_path}/{i // games_in_file}.rdg"
+            with open(game_data_path, "wb") as f:
+                pickle.dump(game_data, f)
+            print("[INFO] saved:", game_data_path)
+            print("[INFO] saved:", i, "games")
