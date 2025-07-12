@@ -4,11 +4,11 @@ import numpy as np
 
 class BoardPlus(chess.Board):
 
-    def __init__(self, fen=None):
+    def __init__(self, fen=None, chess960=False):
         if fen is not None:
-            super().__init__(fen)
+            super().__init__(fen, chess960=chess960)
         else:
-            super().__init__()
+            super().__init__(chess960=chess960)
         self.row_count = 8
         self.column_count = 8
         self.action_size = 6272
@@ -248,7 +248,8 @@ class BoardPlus(chess.Board):
         temp.reverse()
         print("\n".join(temp))
 
-    def change_move_perspective(self, move: chess.Move) -> chess.Move:
+    @staticmethod
+    def change_move_perspective(move: chess.Move) -> chess.Move:
         flipped_from_square = chess.square(7 - chess.square_file(move.from_square),
                                            7 - chess.square_rank(move.from_square))
         flipped_to_square = chess.square(7 - chess.square_file(move.to_square), 7 - chess.square_rank(move.to_square))

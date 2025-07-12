@@ -1,4 +1,3 @@
-from PGNDataset import PGNDataset
 from chessModel import ChessNet
 from boardPlus import BoardPlus
 import chess_mctsnn
@@ -6,6 +5,7 @@ from tqdm import tqdm
 import numpy as np
 import chess
 import random
+from log import Log
 import pickle
 import torch
 import os
@@ -19,50 +19,44 @@ def shuffle_arrays(a, b, c):
 
 
 def train(net, optimizer, device, epochs=50):
-    file_names = ["train_converted_dataset/" + f for f in os.listdir("train_converted_dataset")]
+    file_names = ["F:/train_converted_dataset/" + f for f in os.listdir("F:/train_converted_dataset")]
 
     for i in range(epochs):
         random.shuffle(file_names)
-        losses = []
         policy_losses = []
         value_losses = []
 
         with tqdm(total=len(file_names), desc=f"Epoch {i}") as pbar:
             for file_name in file_names:
-                data = pickle.load(open(file_name, "rb"))
-                random.shuffle(data)
                 try:
-                    for game_data in data:
-                        moves, boards, win = game_data
+                    file_data = pickle.load(open(file_name, "rb"))
+                    moves, boards, wins = file_data
+                    shuffle_arrays(moves, boards, wins)
+                    moves = torch.tensor(moves, device=device).float()
+                    boards = torch.tensor(boards, device=device).float()
+                    wins = torch.tensor(wins, device=device).float()
 
-                        if len(moves) == 0 or len(boards) == 0 or len(win) == 0:
-                            continue
-                        moves, boards, win = shuffle_arrays(moves, boards, win)
-                        moves = torch.tensor(moves, device=device).float()
-                        boards = torch.tensor(boards, device=device).float()
-                        win = torch.tensor(win, device=device).float()
+                    value, policy = net(boards)
+                    value = value.squeeze(1)
 
-                        value, policy = net(boards)
-                        value = value.squeeze(1)
+                    loss_policy = torch.nn.functional.cross_entropy(policy, moves)
+                    loss_value = torch.nn.functional.mse_loss(value, wins)
+                    loss = loss_policy + loss_value
 
-                        loss_policy = torch.nn.functional.cross_entropy(policy, moves)
-                        loss_value = torch.nn.functional.mse_loss(value, win)
-                        loss = loss_policy + loss_value
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
 
-                        optimizer.zero_grad()
-                        loss.backward()
-                        optimizer.step()
-
-                        losses.append(loss.item())
-                        policy_losses.append(loss_policy.item())
-                        value_losses.append(loss_value.item())
-                        pbar.set_postfix(
-                            avg_loss=np.mean(losses),
-                            avg_policy_loss=np.mean(policy_losses),
-                            avg_value_loss=np.mean(value_losses),
-                        )
+                    policy_losses.append(loss_policy.item())
+                    value_losses.append(loss_value.item())
+                    pbar.set_postfix(
+                        avg_loss=np.mean(policy_losses + value_losses),
+                        avg_policy_loss=np.mean(policy_losses),
+                        avg_value_loss=np.mean(value_losses),
+                    )
                 except Exception as e:
-                    print(f"Error learning from file {file_name}: {e}")
+                    Log.error(f"Error processing file {file_name}: {e}")
+                    continue
                 finally:
                     pbar.update(1)
         torch.save(net.state_dict(), f"learn_files/chess_model3_epoch{i}.pt")
@@ -171,8 +165,8 @@ print("Using device:", device)
 net = ChessNet(80, 30, device=device)
 optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
 
-net.load_state_dict(torch.load("learn_files/chess_model2_epoch15.pt"))
-optimizer.load_state_dict(torch.load("learn_files/chess_optimizer2_epoch15.pt"))
+net.load_state_dict(torch.load("learn_files/chess_model2_epoch4.pt"))
+optimizer.load_state_dict(torch.load("learn_files/chess_optimizer2_epoch4.pt"))
 
 # test(net, optimizer)
 train(net, optimizer, device)

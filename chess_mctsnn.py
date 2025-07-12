@@ -32,7 +32,7 @@ class MCTSNode:
 
 class AMCTS:
     """
-    Works for black perspective only.
+    Works only for black perspective.
     """
 
     def __init__(self, sim_count, model: ChessNet, c_param=1.4):
