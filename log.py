@@ -3,15 +3,18 @@ import time
 
 class Log:
 
-    file = open("log.txt", "a")
-    @staticmethod
-    def info(message: str):
-        print("[INFO] [" + time.strftime("%H:%M:%S") + "] " + message)
-        Log.file.write("[INFO] [" + time.strftime("%H:%M:%S") + "] " + message + "\n")
-        Log.file.flush()
+    def __init__(self, path: str = None):
+        if path is not None:
+            self.file = open(path, "a")
 
-    @staticmethod
-    def error(message: str):
-        print("[ERROR] [" + time.strftime("%H:%M:%S") + "] " + message)
-        Log.file.write("[ERROR] [" + time.strftime("%H:%M:%S") + "] " + message + "\n")
-        Log.file.flush()
+    def info(self, message: str):
+        print("[" + time.strftime("%H:%M:%S") + "] [INFO] " + message)
+        if self.file is not None:
+            self.file.write("[INFO] [" + time.strftime("%H:%M:%S") + "] " + message + "\n")
+            self.file.flush()
+
+    def error(self, message: str):
+        print("[" + time.strftime("%H:%M:%S") + "] [ERROR] " + message)
+        if self.file is not None:
+            self.file.write("[ERROR] [" + time.strftime("%H:%M:%S") + "] " + message + "\n")
+            self.file.flush()

@@ -41,10 +41,10 @@ class AMCTS:
         self.model = model
 
     @torch.no_grad()
-    def search(self, state: BoardPlus):
-        state = state.__copy__()
-        state.change_perspective()  # change to black perspective
-        root = MCTSNode(state)
+    def search(self, board: BoardPlus, policy: np.ndarray):
+        root = MCTSNode(board)
+        self.__expansion(policy, root)
+
         for _ in range(self.sim_count):
             best_leaf = self.__selection(root)
 
@@ -69,13 +69,17 @@ class AMCTS:
                 self.__backpropagation(best_leaf, value)
                 self.__expansion(policy, best_leaf)
 
-        probabilities = np.zeros(state.action_size)
+        data = {
+            "type": "mctsnn",
+            "moves": {
+                "id": [],
+                "total_visits": []
+            },
+        }
         for child in root.children:
-            if child.total_visits > 0:
-                print(child.total_reward / child.total_visits, child.move)
-            probabilities[child.move] = child.total_visits
-        probabilities /= probabilities.sum()
-        return probabilities
+            data["moves"]["id"].append(child.move)
+            data["moves"]["total_visits"].append(child.total_visits)
+        return data
 
     def __validate_game(self, state: BoardPlus):
         winner = state.result()

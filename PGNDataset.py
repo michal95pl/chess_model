@@ -5,10 +5,12 @@ import chess.pgn
 import numpy as np
 import pickle
 from log import Log
-import time
 
 
-class PGNDataset:
+class PGNDataset(Log):
+
+    def __init__(self):
+        super().__init__("PGNDataset.log")
 
     @staticmethod
     def convert_board_to_list(board: BoardPlus):
@@ -54,7 +56,7 @@ class PGNDataset:
 
             # todo: remove in final version
             if not board.changed_perspective and not BoardPlus.compare_boards(board, real_board):
-                Log.error(
+                self.error(
                     "Encoded board does not match the real board. Move: " + str(move) + " at game: " + game.headers[
                         'White'] + " vs " + game.headers['Black'])
                 break
@@ -112,7 +114,7 @@ class PGNDataset:
                             PGNDataset.save_games_data_to_file((moves, boards, wins), output_path)
                             games_move, games_board, games_win = [], [], []
                     except Exception as e:
-                        Log.error(f"Error processing game: {game.headers}. Error: {e}")
+                        self.error(f"Error processing game: {game.headers}. Error: {e}")
                         continue
                 pgn.close()
 

@@ -10,6 +10,7 @@ import pickle
 import torch
 import os
 
+log = Log("chessTrain.log")
 
 def shuffle_arrays(a, b, c):
     combined = list(zip(a, b, c))
@@ -55,12 +56,12 @@ def train(net, optimizer, device, epochs=50):
                         avg_value_loss=np.mean(value_losses),
                     )
                 except Exception as e:
-                    Log.error(f"Error processing file {file_name}: {e}")
+                    log.error(f"Error processing file {file_name}: {e}")
                     continue
                 finally:
                     pbar.update(1)
-        torch.save(net.state_dict(), f"learn_files/chess_model3_epoch{i}.pt")
-        torch.save(optimizer.state_dict(), f"learn_files/chess_optimizer3_epoch{i}.pt")
+        torch.save(net.state_dict(), f"learn_files/chess_model5_epoch{i}.pt")
+        torch.save(optimizer.state_dict(), f"learn_files/chess_optimizer5_epoch{i}.pt")
 
 
 def show_5_largest(arr):
@@ -165,8 +166,8 @@ print("Using device:", device)
 net = ChessNet(80, 30, device=device)
 optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
 
-net.load_state_dict(torch.load("learn_files/chess_model2_epoch4.pt"))
-optimizer.load_state_dict(torch.load("learn_files/chess_optimizer2_epoch4.pt"))
+net.load_state_dict(torch.load("learn_files/chess_model4_epoch8.pt"))
+optimizer.load_state_dict(torch.load("learn_files/chess_optimizer4_epoch8.pt"))
 
 # test(net, optimizer)
 train(net, optimizer, device)

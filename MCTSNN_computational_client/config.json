@@ -1,0 +1,7 @@
+{
+  "host": {
+    "ip": "localhost",
+    "port": 5000
+  },
+  "connection_timeout": 5000
+}
