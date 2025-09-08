@@ -1,9 +1,9 @@
 import chess.engine as chess_engine
 import chess.pgn
 
-from chessModel import ChessNet
-from boardPlus import BoardPlus
-from chess_mctsnn import AMCTS
+from model.chessNet import ChessNet
+from utils.boardPlus import BoardPlus
+from model.chess_mctsnn import AMCTS
 import numpy as np
 import torch
 

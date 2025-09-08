@@ -1,0 +1,99 @@
+from utils.config_file import ConfigFile
+from communication import Communication
+from utils.logger import Logger
+from utils.PGNDataset import PGNDataset
+import torch
+from model.chessNet import ChessNet
+from model.chessModel import ChessModel
+from communicationHandler import CommunicationHandler
+from model.chess_mctsnn import AMCTS
+
+class CommandsHandler(Logger):
+    def __init__(self):
+        super().__init__()
+        self.configs = ConfigFile('config.json')
+        self.communicationHandler = None
+        self.is_model_loaded = False
+
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.net = ChessNet(
+            int(self.configs.get_config("num_hidden_layers")),
+            int(self.configs.get_config("num_residual_blocks")),
+            device=self.device
+        )
+        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.001)
+
+    def __command_handler(self, command: list):
+        if len(command) == 1 and command[0] == 'help':
+            self.__help_command()
+        elif len(command) == 1 and command[0] == "print-status":
+            self.__print_status()
+        elif len(command) == 1 and command[0] == 'start-server':
+            self.__start_server()
+        elif len(command) == 1 and command[0] == 'stop-server':
+            self.__stop_server()
+        elif len(command) == 3 and command[0] == 'convert-games':
+            PGNDataset().encode_directory(command[1], command[2], int(self.configs.get_config('max_games_per_file')))
+        elif (len(command) == 1 or len(command) == 3) and command[0] == 'train-model':
+            if len(command) == 1:
+                ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')))
+            else:
+                ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')), command[1], command[2])
+        elif len(command) == 3 and command[0] == "load-model":
+            self.__load_model(command)
+        else:
+            print("Unknown command. Type 'help' to see available commands.")
+
+
+    def run_app(self):
+        print(r"      _                                         _      _ ")
+        print(r"     | |                                       | |    | |")
+        print(r"  ___| |__   ___  ___ ___   _ __ ___   ___   __| | ___| |")
+        print(r" / __| '_ \ / _ \/ __/ __| | '_ ` _ \ / _ \ / _` |/ _ \ |")
+        print(r"| (__| | | |  __/\__ \__ \ | | | | | | (_) | (_| |  __/ |")
+        print(r" \___|_| |_|\___||___/___/ |_| |_| |_|\___/ \__,_|\___|_|")
+        print()
+        print("Chess Model Application")
+        print("Type 'help' to see available commands")
+        while True:
+            command = input("> ").split(' ')
+            self.__command_handler(command)
+
+    def __help_command(self):
+        print("Available commands:")
+        print("print-status")
+        print("start-server - Run the chess model server")
+        print("stop-server - Stop the chess model server")
+        print("convert-games <input_directory> <output_directory> - Convert PGN files to encoded format .rdg")
+        print("load-model <model_path> <optimizer_path> - Load a pre-trained model and optimizer state")
+        print("train-model <dataset_directory> <output_directory> - Train the model using dataset. dataset and output directory are optional")
+
+    def __print_status(self):
+        print("Using: " + str(self.device))
+        if self.communicationHandler is not None:
+            print("Server is running on " + str(self.configs.get_config('server_ip')) + ":" + str(self.configs.get_config('server_port')))
+            print("Games handled in this session: " + str(self.communicationHandler.get_games_handled()))
+
+    def __start_server(self):
+        if self.communicationHandler is None:
+            if not self.is_model_loaded:
+                self.warning("Using untrained model. It's recommended to load a trained model before starting the server.")
+            self.communicationHandler = CommunicationHandler(
+                Communication(int(self.configs.get_config('server_port')), self.configs.get_config('server_ip')),
+                AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'))
+            )
+        else:
+            self.info("server is running")
+
+    def __stop_server(self):
+        if self.communicationHandler is not None:
+            self.communicationHandler.stop()
+            self.communicationHandler = None
+        else:
+            self.info("server is not running")
+
+    def __load_model(self, command: list):
+        self.is_model_loaded = True
+        self.net.load_state_dict(torch.load(command[1]))
+        self.optimizer.load_state_dict(torch.load(command[2]))
+        self.info("model loaded successfully")

@@ -1,0 +1,10 @@
+{
+  "server_ip": "localhost",
+  "server_port": 12345,
+  "max_games_per_file": 50,
+  "num_hidden_layers": 80,
+  "num_residual_blocks": 30,
+  "epochs": 50,
+  "mcts_simulations": 50,
+  "mcts_c_param": 1.4
+}

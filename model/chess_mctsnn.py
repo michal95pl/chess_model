@@ -1,7 +1,7 @@
 import numpy as np
-from boardPlus import BoardPlus
+from utils.boardPlus import BoardPlus
 import math
-from chessModel import ChessNet
+from model.chessNet import ChessNet
 import torch
 
 
@@ -71,8 +71,8 @@ class AMCTS:
 
         probabilities = np.zeros(state.action_size)
         for child in root.children:
-            if child.total_visits > 0:
-                print(child.total_reward / child.total_visits, child.move)
+            # if child.total_visits > 0:
+                # print(child.total_reward / child.total_visits, child.move)
             probabilities[child.move] = child.total_visits
         probabilities /= probabilities.sum()
         return probabilities
