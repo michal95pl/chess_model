@@ -377,12 +377,11 @@ class BoardPlus(chess.Board):
         return result
 
     def better_to_chess960(self, move: chess.Move) -> chess.Move:
-        #todo: check left castling
         if self.changed_perspective:
             if move.from_square == chess.D1 and self.kings & chess.BB_D1:
                 if move.to_square == chess.B1 and not self.rooks & chess.BB_B1:
                     return chess.Move(chess.D1, chess.A1)
-                elif move.to_square == chess.G1 and not self.rooks & chess.BB_G1:
+                elif move.to_square == chess.F1 and not self.rooks & chess.BB_F1:
                     return chess.Move(chess.D1, chess.H1)
 
             elif move.from_square == chess.D8 and self.kings & chess.BB_D8:
@@ -394,14 +393,14 @@ class BoardPlus(chess.Board):
             if move.from_square == chess.E1 and self.kings & chess.BB_E1:
                 if move.to_square == chess.G1 and not self.rooks & chess.BB_G1:
                     return chess.Move(chess.E1, chess.H1)
-                elif move.to_square == chess.B1 and not self.rooks & chess.BB_B1:
+                elif move.to_square == chess.C1 and not self.rooks & chess.BB_C1:
                     return chess.Move(chess.E1, chess.A1)
 
             elif move.from_square == chess.E8 and self.kings & chess.BB_E8:
                 if move.to_square == chess.G8 and not self.rooks & chess.BB_G8:
                     return chess.Move(chess.E8, chess.H8)
-                elif move.to_square == chess.B8 and not self.rooks & chess.BB_B8:
-                    return chess.Move(chess.B8, chess.A8)
+                elif move.to_square == chess.C8 and not self.rooks & chess.BB_C8:
+                    return chess.Move(chess.E8, chess.A8)
 
         return move
 
