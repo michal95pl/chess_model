@@ -7,6 +7,7 @@ from model.chessNet import ChessNet
 from model.chessModel import ChessModel
 from communicationHandler import CommunicationHandler
 from model.chess_mctsnn import AMCTS
+from model.evaluation import Evaluation
 
 class CommandsHandler(Logger):
     def __init__(self):
@@ -41,6 +42,8 @@ class CommandsHandler(Logger):
                 ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')), command[1], command[2])
         elif len(command) == 3 and command[0] == "load-model":
             self.__load_model(command)
+        elif (len(command) == 2 or len(command) == 3) and command[0] == "evaluate-model":
+            self.__evaluate_model(command)
         else:
             print("Unknown command. Type 'help' to see available commands.")
 
@@ -67,6 +70,7 @@ class CommandsHandler(Logger):
         print("convert-games <input_directory> <output_directory> - Convert PGN files to encoded format .rdg")
         print("load-model <model_path> <optimizer_path> - Load a pre-trained model and optimizer state")
         print("train-model <dataset_directory> <output_directory> - Train the model using dataset. dataset and output directory are optional")
+        print("evaluate-model <num_games> <plot_path> - Evaluate the model against Stockfish. plot_path are optional")
 
     def __print_status(self):
         print("Using: " + str(self.device))
@@ -100,3 +104,13 @@ class CommandsHandler(Logger):
             self.is_model_loaded = True
         except Exception as e:
             self.error(f"Error loading model or optimizer: {e}")
+
+    def __evaluate_model(self, command: list):
+        eval = Evaluation(
+            self.configs.get_config('stockfish_path'),
+            AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'))
+        )
+        if len(command) == 2:
+            eval.evaluate(int(command[1]))
+        else:
+            eval.evaluate(int(command[1]), command[2])
