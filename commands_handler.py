@@ -93,7 +93,10 @@ class CommandsHandler(Logger):
             self.info("server is not running")
 
     def __load_model(self, command: list):
-        self.is_model_loaded = True
-        self.net.load_state_dict(torch.load(command[1]))
-        self.optimizer.load_state_dict(torch.load(command[2]))
-        self.info("model loaded successfully")
+        try:
+            self.net.load_state_dict(torch.load(command[1]))
+            self.optimizer.load_state_dict(torch.load(command[2]))
+            self.info("model loaded successfully")
+            self.is_model_loaded = True
+        except Exception as e:
+            self.error(f"Error loading model or optimizer: {e}")
