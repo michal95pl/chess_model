@@ -61,8 +61,15 @@ class ChessModel(Logger):
                         continue
                     finally:
                         pbar.update(1)
-            torch.save(net.state_dict(), output_path + f"_model_epoch{i}.pt")
-            torch.save(optimizer.state_dict(), output_path + f"_optimizer_epoch{i}.pt")
+            torch.save({
+                    "model" : net.state_dict(),
+                    "optimizer" : optimizer.state_dict(),
+                    "avg_loss": np.mean(policy_losses + value_losses),
+                    "avg_policy_loss": np.mean(policy_losses),
+                    "avg_value_loss": np.mean(value_losses)
+                },
+                output_path + f"_model_epoch{i}.pt"
+            )
 
 
     # def show_5_largest(arr):

@@ -40,7 +40,7 @@ class CommandsHandler(Logger):
                 ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')))
             else:
                 ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')), command[1], command[2])
-        elif len(command) == 3 and command[0] == "load-model":
+        elif len(command) == 2 and command[0] == "load-model":
             self.__load_model(command)
         elif (len(command) == 2 or len(command) == 3) and command[0] == "evaluate-model":
             self.__evaluate_model(command)
@@ -68,7 +68,7 @@ class CommandsHandler(Logger):
         print("start-server - Run the chess model server")
         print("stop-server - Stop the chess model server")
         print("convert-games <input_directory> <output_directory> - Convert PGN files to encoded format .rdg")
-        print("load-model <model_path> <optimizer_path> - Load a pre-trained model and optimizer state")
+        print("load-model <model_path> - Load a pre-trained model")
         print("train-model <dataset_directory> <output_directory> - Train the model using dataset. dataset and output directory are optional")
         print("evaluate-model <num_games> <plot_path> - Evaluate the model against Stockfish. plot_path are optional")
 
@@ -98,8 +98,9 @@ class CommandsHandler(Logger):
 
     def __load_model(self, command: list):
         try:
-            self.net.load_state_dict(torch.load(command[1]))
-            self.optimizer.load_state_dict(torch.load(command[2]))
+            checkpoint = torch.load(command[1])
+            self.net.load_state_dict(checkpoint["model"])
+            self.optimizer.load_state_dict(checkpoint["optimizer"])
             self.info("model loaded successfully")
             self.is_model_loaded = True
         except Exception as e:
