@@ -33,8 +33,8 @@ class CommandsHandler(Logger):
             self.__start_server()
         elif len(command) == 1 and command[0] == 'stop-server':
             self.__stop_server()
-        elif len(command) == 3 and command[0] == 'convert-games':
-            PGNDataset().encode_directory(command[1], command[2], int(self.configs.get_config('max_games_per_file')))
+        elif len(command) == 4 and command[0] == 'convert-games':
+            PGNDataset().encode_directory(command[1], command[2], command[3], int(self.configs.get_config('max_games_per_train_file')), float(self.configs.get_config('test_split_ratio')))
         elif (len(command) == 1 or len(command) == 3) and command[0] == 'train-model':
             if len(command) == 1:
                 ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')))
@@ -67,7 +67,7 @@ class CommandsHandler(Logger):
         print("print-status")
         print("start-server - Run the chess model server")
         print("stop-server - Stop the chess model server")
-        print("convert-games <input_directory> <output_directory> - Convert PGN files to encoded format .rdg")
+        print("convert-games <input_directory> <output_train_data_directory> <output_test_data_directory> - Convert PGN files to encoded format .rdg")
         print("load-model <model_path> - Load a pre-trained model")
         print("train-model <dataset_directory> <output_directory> - Train the model using dataset. dataset and output directory are optional")
         print("evaluate-model <num_games> <plot_path> - Evaluate the model against Stockfish. plot_path are optional")

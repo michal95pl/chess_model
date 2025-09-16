@@ -1,12 +1,17 @@
 {
   "server_ip": "localhost",
   "server_port": 12345,
-  "max_games_per_file": 50,
+
+  "max_games_per_train_file": 10,
+  "test_split_ratio": 0.2,
+
   "num_hidden_layers": 80,
   "num_residual_blocks": 30,
   "epochs": 50,
-  "mcts_simulations": 50,
-  "mcts_c_param": 1.4
+
+  "mcts_simulations": 10,
+  "mcts_c_param": 1.4,
+
   "stockfish_path": "stockfish/stockfish-ubuntu-x86-64-avx2",
   "stockfish_gen_moves": 1
 }

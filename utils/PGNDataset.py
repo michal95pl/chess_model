@@ -5,6 +5,7 @@ import chess.pgn
 import numpy as np
 import pickle
 from utils.logger import Logger
+import math
 
 
 class PGNDataset(Logger):
@@ -65,13 +66,27 @@ class PGNDataset(Logger):
     file_number = 0
     number_converted_games = 0
 
+    @staticmethod
+    def __split_moves(moves: tuple, test_split_ratio: float):
+        split_index = int(len(moves) * (1 - test_split_ratio))
+        return (moves[0][split_index:], moves[1][split_index:], moves[2][split_index:]), (moves[0][:split_index], moves[1][:split_index], moves[2][:split_index])
 
-    def save_games_data_to_file(self, moves: tuple, output_path: str):
-        game_data_path = f"{output_path}/{PGNDataset.file_number}.rdg"
-        with open(game_data_path, "wb") as f:
-            pickle.dump(moves, f)
+    def __save_games_data_to_file(self, moves: tuple, train_output_path: str, test_output_path: str, test_split_ratio: float):
+        game_train_data_path = f"{train_output_path}/{PGNDataset.file_number}.rdg"
+        game_test_data_path = f"{test_output_path}/{PGNDataset.file_number}.rdg"
+
+        train_data, test_data = PGNDataset.__split_moves(moves, test_split_ratio)
+
+        with open(game_train_data_path, "wb") as f:
+            pickle.dump(train_data, f)
+            self.info(f"Saved train data moves to {game_train_data_path}")
+
+        if len(test_data[0]) > 0:
+            with open(game_test_data_path, "wb") as f:
+                pickle.dump(test_data, f)
+                self.info(f"Saved test data moves to {game_test_data_path}")
+
         PGNDataset.file_number += 1
-        self.info(f"Saved moves to {game_data_path}")
         self.info(f"Converted total {PGNDataset.number_converted_games} games")
 
     # problem z metodą concatenate, im większa jest główna lista tym dłużej trwa konkatenacja:
@@ -84,8 +99,14 @@ class PGNDataset(Logger):
     # [INFO][18:39:45] 700
     # [INFO][18:40:47] 800
     # [INFO][18:41:58] 900
-    def encode_directory(self, input_path: str, output_path: str, max_games_in_file: int = 500):
+    def encode_directory(self, input_path: str, train_data_output_path: str, test_data_output_path: str, max_games_in_file: int, test_split_ratio: float):
         games_move, games_board, games_win = [], [], []
+
+        if math.floor(test_split_ratio * max_games_in_file) == 0:
+            self.warning("Test split ratio is too small, no test data will be created.")
+            self.info(f"Encoding directory with {max_games_in_file} games in each train files")
+        else:
+            self.info(f"Encoding directory with {max_games_in_file} games in each train files and {math.floor(test_split_ratio * max_games_in_file)} games in test files")
 
         for file_name in os.listdir(input_path):
             if file_name.endswith(".pgn"):
@@ -107,9 +128,9 @@ class PGNDataset(Logger):
                         games_win.append(game_wins)
 
                         PGNDataset.number_converted_games += 1
-                        if PGNDataset.number_converted_games % max_games_in_file == 0:
+                        if PGNDataset.number_converted_games % (max_games_in_file + math.floor(max_games_in_file*0.1)) == 0:
                             moves, boards, wins = np.concatenate(games_move), np.concatenate(games_board), np.concatenate(games_win)
-                            self.save_games_data_to_file((moves, boards, wins), output_path)
+                            self.__save_games_data_to_file((moves, boards, wins), train_data_output_path, test_data_output_path, test_split_ratio)
                             games_move, games_board, games_win = [], [], []
                     except Exception as e:
                         self.error(f"Error processing game: {game.headers}. Error: {e}")
@@ -118,4 +139,4 @@ class PGNDataset(Logger):
 
         if games_move and games_board and games_win:
             moves, boards, wins = np.concatenate(games_move), np.concatenate(games_board), np.concatenate(games_win)
-            self.save_games_data_to_file((moves, boards, wins), output_path)
+            self.__save_games_data_to_file((moves, boards, wins), train_data_output_path, test_data_output_path, test_split_ratio)
