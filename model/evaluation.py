@@ -20,24 +20,24 @@ class Evaluation(Logger):
         self.mcts = mcts
         self.random_model_scores = self.__get_random_model_score()
 
-    def evaluate(self, num_games, save_path: str="evaluation_plot.png"):
+    def evaluate(self, num_games, multipv, save_path: str="evaluation_plot.png"):
         if num_games < 1:
             self.warning("Number of games must be greater than 0")
             return
         self.info("Starting evaluation of " + str(num_games) + " games")
         games_score = []
         for i in range(num_games):
-            games_score.append(self.__evaluate_game())
+            games_score.append(self.__evaluate_game(multipv))
 
         self.__create_plot(games_score, save_path)
 
-    def __evaluate_game(self):
+    def __evaluate_game(self, multipv):
         board = BoardPlus()
         save_time = time.time()
         scores = []
         while not board.is_game_over():
             if board.turn == chess.WHITE:
-                result = self.engine.analyse(board, chess.engine.Limit(time=0.1), multipv=3)
+                result = self.engine.analyse(board, chess.engine.Limit(time=0.1), multipv=multipv)
                 moves = [info['pv'][0] for info in result]
                 move = np.random.choice(moves)
                 board.push(move)

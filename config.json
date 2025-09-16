@@ -7,4 +7,5 @@
   "epochs": 50,
   "mcts_simulations": 50,
   "mcts_c_param": 1.4
+  "stockfish_gen_moves": 1
 }

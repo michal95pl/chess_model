@@ -111,6 +111,6 @@ class CommandsHandler(Logger):
             AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'))
         )
         if len(command) == 2:
-            eval.evaluate(int(command[1]))
+            eval.evaluate(int(command[1]), int(self.configs.get_config("stockfish_gen_moves")))
         else:
-            eval.evaluate(int(command[1]), command[2])
+            eval.evaluate(int(command[1]), int(self.configs.get_config("stockfish_gen_moves"), command[2]))
