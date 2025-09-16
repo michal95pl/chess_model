@@ -1,3 +1,4 @@
+print("Loading application...")
 from commands_handler import CommandsHandler
 
 if __name__ == "__main__":
