@@ -42,8 +42,6 @@ class CommandsHandler(Logger):
                 ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')), command[1], command[2])
         elif len(command) == 2 and command[0] == "load-model":
             self.__load_model(command)
-        elif (len(command) == 2 or len(command) == 3) and command[0] == "evaluate-model":
-            self.__evaluate_model(command)
         elif (len(command) == 2 or len(command) == 3) and command[0] == "compare-model-to-stockfish":
             self.__compare_model_to_stockfish(command)
         else:
