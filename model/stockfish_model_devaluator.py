@@ -7,7 +7,7 @@ import time
 from utils.logger import Logger
 import matplotlib.pyplot as plt
 
-class Evaluation(Logger):
+class StockfishModelEvaluator(Logger):
 
     def __init__(self, stockfish_path: str, mcts: AMCTS):
         super().__init__()

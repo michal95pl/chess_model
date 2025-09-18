@@ -7,7 +7,7 @@ from model.chessNet import ChessNet
 from model.chessModel import ChessModel
 from communicationHandler import CommunicationHandler
 from model.chess_mctsnn import AMCTS
-from model.evaluation import Evaluation
+from model.stockfish_model_devaluator import StockfishModelEvaluator
 
 class CommandsHandler(Logger):
     def __init__(self):
@@ -44,6 +44,8 @@ class CommandsHandler(Logger):
             self.__load_model(command)
         elif (len(command) == 2 or len(command) == 3) and command[0] == "evaluate-model":
             self.__evaluate_model(command)
+        elif (len(command) == 2 or len(command) == 3) and command[0] == "compare-model-to-stockfish":
+            self.__compare_model_to_stockfish(command)
         else:
             print("Unknown command. Type 'help' to see available commands.")
 
@@ -106,8 +108,8 @@ class CommandsHandler(Logger):
         except Exception as e:
             self.error(f"Error loading model or optimizer: {e}")
 
-    def __evaluate_model(self, command: list):
-        eval = Evaluation(
+    def __compare_model_to_stockfish(self, command: list):
+        eval = StockfishModelEvaluator(
             self.configs.get_config('stockfish_path'),
             AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'))
         )
