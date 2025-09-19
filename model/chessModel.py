@@ -5,6 +5,7 @@ from utils.logger import Logger
 import pickle
 import torch
 import os
+import datetime
 
 class ChessModel(Logger):
 
@@ -20,8 +21,11 @@ class ChessModel(Logger):
         return np.array(a_shuffled), np.array(b_shuffled), np.array(c_shuffled)
 
 
-    def train(self, net, optimizer, epochs, data_path = "train_converted_dataset", output_path="learn_files/chess"):
+    def train(self, net, optimizer, epochs, data_path = "train_converted_dataset", output_path="learn_files/"):
         file_names = [data_path + '/' + f for f in os.listdir(data_path)]
+
+        if '/' not in output_path:
+            self.warning("Learn output path does not contain folder path. Files will be saved in the main project directory.")
 
         for i in range(epochs):
             random.shuffle(file_names)
@@ -66,7 +70,8 @@ class ChessModel(Logger):
                     "optimizer" : optimizer.state_dict(),
                     "avg_loss": np.mean(policy_losses + value_losses),
                     "avg_policy_loss": np.mean(policy_losses),
-                    "avg_value_loss": np.mean(value_losses)
+                    "avg_value_loss": np.mean(value_losses),
+                    "timestamp": str(datetime.datetime.now())
                 },
                 output_path + f"_model_epoch{i}.pt"
             )

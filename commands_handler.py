@@ -8,6 +8,7 @@ from model.chessModel import ChessModel
 from communicationHandler import CommunicationHandler
 from model.chess_mctsnn import AMCTS
 from model.stockfish_model_devaluator import StockfishModelEvaluator
+from model.stockfish_model_evaluator import StockfishModelEvaluator
 
 class CommandsHandler(Logger):
     def __init__(self):
@@ -74,6 +75,7 @@ class CommandsHandler(Logger):
 
     def __print_status(self):
         print("Using: " + str(self.device))
+        print("Model loaded: " + str(self.is_model_loaded))
         if self.communicationHandler is not None:
             print("Server is running on " + str(self.configs.get_config('server_ip')) + ":" + str(self.configs.get_config('server_port')))
             print("Games handled in this session: " + str(self.communicationHandler.get_games_handled()))
@@ -98,7 +100,7 @@ class CommandsHandler(Logger):
 
     def __load_model(self, command: list):
         try:
-            checkpoint = torch.load(command[1])
+            checkpoint = torch.load(command[1], weights_only=False)
             self.net.load_state_dict(checkpoint["model"])
             self.optimizer.load_state_dict(checkpoint["optimizer"])
             self.info("model loaded successfully")
