@@ -7,7 +7,6 @@ from model.chessNet import ChessNet
 from model.chessModel import ChessModel
 from communicationHandler import CommunicationHandler
 from model.chess_mctsnn import AMCTS
-from model.stockfish_model_devaluator import StockfishModelEvaluator
 from model.stockfish_model_evaluator import StockfishModelEvaluator
 
 class CommandsHandler(Logger):

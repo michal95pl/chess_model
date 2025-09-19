@@ -26,6 +26,9 @@ class ChessModel(Logger):
 
         if '/' not in output_path:
             self.warning("Learn output path does not contain folder path. Files will be saved in the main project directory.")
+        elif not os.path.exists(output_path.split('/')[0]):
+            self.error("Provided folder in learn output path does not exist.")
+            return
 
         for i in range(epochs):
             random.shuffle(file_names)
