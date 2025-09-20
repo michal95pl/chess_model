@@ -8,6 +8,7 @@ from model.chessModel import ChessModel
 from communicationHandler import CommunicationHandler
 from model.chess_mctsnn import AMCTS
 from model.stockfish_model_evaluator import StockfishModelEvaluator
+from model.model_evaluator import ModelEvaluator
 
 class CommandsHandler(Logger):
     def __init__(self):
@@ -44,6 +45,13 @@ class CommandsHandler(Logger):
             self.__load_model(command)
         elif (len(command) == 2 or len(command) == 3) and command[0] == "compare-model-to-stockfish":
             self.__compare_model_to_stockfish(command)
+        elif len(command) == 3 and command[0] == "show-loss":
+            ModelEvaluator(command[1], self.device, self.net).save_losses_plot(command[2])
+            self.is_model_loaded = False
+        elif len(command) == 2 and command[0] == "confusion-matrix":
+            if not self.is_model_loaded:
+                self.warning("Using untrained model. It's recommended to load a trained model before generating confusion matrix.")
+            ModelEvaluator(command[1], self.device, self.net).save_confusion_matrix()
         else:
             print("Unknown command. Type 'help' to see available commands.")
 
@@ -70,7 +78,9 @@ class CommandsHandler(Logger):
         print("convert-games <input_directory> <output_train_data_directory> <output_test_data_directory> - Convert PGN files to encoded format .rdg")
         print("load-model <model_path> - Load a pre-trained model")
         print("train-model <dataset_directory> <output_directory> - Train the model using dataset. dataset and output directory are optional")
-        print("evaluate-model <num_games> <plot_path> - Evaluate the model against Stockfish. plot_path are optional")
+        print("evaluate-model <num_games> <plot_path> - Evaluate the model against Stockfish. plot_path are optional") #todo: rename
+        print("show-loss <test_data_directory> <models_directory> - Show loss of models on test data")
+        print("confusion-matrix <test_data_directory> - Save confusion matrix for value network on test data")
 
     def __print_status(self):
         print("Using: " + str(self.device))
