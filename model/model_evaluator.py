@@ -75,7 +75,7 @@ class ModelEvaluator(Logger):
         plt.imshow(cm_value, interpolation='nearest', cmap=plt.cm.Blues)
         plt.title('Confusion Matrix for Value Network\n' + metrics_text)
         tick_marks = range(2)
-        plt.xticks(tick_marks, ['1', '-1'])
+        plt.xticks(tick_marks, ['-1', '1'])
         plt.yticks(tick_marks, ['-1', '1'])
         plt.xlabel('Predicted Label')
         plt.ylabel('True Label')
