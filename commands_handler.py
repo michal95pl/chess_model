@@ -45,8 +45,11 @@ class CommandsHandler(Logger):
             self.__load_model(command)
         elif (len(command) == 2 or len(command) == 3) and command[0] == "compare-model-to-stockfish":
             self.__compare_model_to_stockfish(command)
-        elif len(command) == 3 and command[0] == "show-loss":
-            ModelEvaluator(command[1], self.device, self.net).save_losses_plot(command[2])
+        elif (len(command) == 3 or len(command) == 4) and command[0] == "show-loss":
+            if len(command) == 3:
+                ModelEvaluator(command[1], self.device, self.net).save_losses_plot(command[2])
+            else:
+                ModelEvaluator(command[1], self.device, self.net).save_losses_plot(command[2], int(command[3]))
             self.is_model_loaded = False
         elif len(command) == 2 and command[0] == "confusion-matrix":
             if not self.is_model_loaded:
@@ -79,7 +82,7 @@ class CommandsHandler(Logger):
         print("load-model <model_path> - Load a pre-trained model")
         print("train-model <dataset_directory> <output_directory> - Train the model using dataset. dataset and output directory are optional")
         print("evaluate-model <num_games> <plot_path> - Evaluate the model against Stockfish. plot_path are optional") #todo: rename
-        print("show-loss <test_data_directory> <models_directory> - Show loss of models on test data")
+        print("show-loss <test_data_directory> <models_directory> <skip_factor> - Show loss plot for models in models_directory on test data. skip_factor is optional")
         print("confusion-matrix <test_data_directory> - Save confusion matrix for value network on test data")
 
     def __print_status(self):

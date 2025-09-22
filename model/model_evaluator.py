@@ -20,9 +20,9 @@ class ModelEvaluator(Logger):
         self.device = device
         self.net = net
 
-    def save_losses_plot(self, models_folder_path, plot_path: str = "losses_plot"):
+    def save_losses_plot(self, models_folder_path, skip_factor: int = 0, plot_path: str = "losses_plot"):
         plot_path += ".png"
-        learn_losses, test_losses = self.__get_losses(self.net, models_folder_path)
+        learn_losses, test_losses = self.__get_losses(self.net, models_folder_path, skip_factor)
         learn_policy_loss, learn_value_loss = zip(*learn_losses)
         test_policy_loss, test_value_loss = zip(*test_losses)
 
@@ -47,7 +47,12 @@ class ModelEvaluator(Logger):
         plt.show()
         self.info(f"Saved losses plot to {plot_path}")
 
-    def __get_losses(self, net, models_folder_path: str):
+    @staticmethod
+    def skip_elements(data: list, skip_factor):
+        # todo: improve skipping (e.g., linear skip)
+        return [data[i] for i in range(0, len(data), skip_factor+1)]
+
+    def __get_losses(self, net, models_folder_path: str, skip_factor: int):
 
         files = {}
         for file_name in os.listdir(models_folder_path):
@@ -57,13 +62,18 @@ class ModelEvaluator(Logger):
             files[dt] = file_name
 
         files = sorted(files.items())
+        files = [file_name for _, file_name in files]
+        if skip_factor > 0:
+            files = self.skip_elements(files, skip_factor)
+            self.info(f"Skipped elements with factor {skip_factor}.")
+
         self.info("Sorted model files by timestamp.")
 
         learn_losses = []
         test_losses = []
         with tqdm(total=len(files), desc="Evaluating models", colour="blue") as pbar:
             for file in files:
-                data = torch.load(os.path.join(models_folder_path, file[1]), weights_only=False)
+                data = torch.load(os.path.join(models_folder_path, file), weights_only=False)
                 net.load_state_dict(data['model'])
                 learn_losses.append((data['avg_policy_loss'], data['avg_value_loss']))
                 test_losses.append(ChessModel(self.device).get_model_loss(net, self.test_data_folder_path))
