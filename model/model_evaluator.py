@@ -5,6 +5,7 @@ from tqdm import tqdm
 from matplotlib import pyplot as plt
 from model.chessModel import ChessModel
 from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score
+import datetime
 
 class ModelEvaluator(Logger):
 
@@ -48,12 +49,21 @@ class ModelEvaluator(Logger):
 
     def __get_losses(self, net, models_folder_path: str):
 
+        files = {}
+        for file_name in os.listdir(models_folder_path):
+            data = torch.load(os.path.join(models_folder_path, file_name), weights_only=False)
+            timestamp = data.get('timestamp')
+            dt = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S.%f")
+            files[dt] = file_name
+
+        files = sorted(files.items())
+        self.info("Sorted model files by timestamp.")
+
         learn_losses = []
         test_losses = []
-        #todo: sort data by timestamp saved inside the file
-        with tqdm(total=len(os.listdir(models_folder_path)), desc="Evaluating models", colour="blue") as pbar:
-            for file_name in sorted(os.listdir(models_folder_path)):
-                data = torch.load(os.path.join(models_folder_path, file_name), weights_only=False)
+        with tqdm(total=len(files), desc="Evaluating models", colour="blue") as pbar:
+            for file in files:
+                data = torch.load(os.path.join(models_folder_path, file[1]), weights_only=False)
                 net.load_state_dict(data['model'])
                 learn_losses.append((data['avg_policy_loss'], data['avg_value_loss']))
                 test_losses.append(ChessModel(self.device).get_model_loss(net, self.test_data_folder_path))
