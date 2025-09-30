@@ -102,7 +102,7 @@ class CommandsHandler(Logger):
                 self.warning("Using untrained model. It's recommended to load a trained model before starting the server.")
             self.communicationHandler = CommunicationHandler(
                 Communication(int(self.configs.get_config('server_port')), self.configs.get_config('server_ip')),
-                AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'))
+                AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'), self.configs.get_config('parallel_computations')),
             )
         else:
             self.info("server is running")
@@ -128,7 +128,7 @@ class CommandsHandler(Logger):
     def __compare_model_to_stockfish(self, command: list):
         eval = StockfishModelEvaluator(
             self.configs.get_config('stockfish_path'),
-            AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'))
+            AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'),  self.configs.get_config('parallel_computations')),
             self.loaded_model_path,
             int(self.configs.get_config('evaluation_seed'))
         )

@@ -11,6 +11,7 @@
 
   "mcts_simulations": 10,
   "mcts_c_param": 1.4,
+  "parallel_computations": 2,
 
   "stockfish_path": "stockfish/stockfish-ubuntu-x86-64-avx2",
   "stockfish_gen_moves": 2,

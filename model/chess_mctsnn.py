@@ -14,6 +14,7 @@ class MCTSNode:
         self.total_visits = 0
         self.total_reward = 0
         self.prior = prior
+        self.lock = False
 
     def get_ucb_score(self, c_param):
         if self.total_visits == 0:
@@ -35,39 +36,36 @@ class AMCTS:
     Works only for black perspective.
     """
 
-    def __init__(self, sim_count, model: ChessNet, c_param=1.4):
+    def __init__(self, sim_count, model: ChessNet, c_param=1.4, max_parallel_computations=1):
         self.sim_count = sim_count
         self.c_param = c_param
         self.model = model
+        self.computation_list = []
+        self.max_parallel_computations = max_parallel_computations
 
-    @torch.no_grad()
     def search(self, state: BoardPlus):
         state = state.__copy__()
         state.change_perspective()  # change to black perspective
         root = MCTSNode(state)
-        for _ in range(self.sim_count):
+        for sim_number in range(self.sim_count):
             best_leaf = self.__selection(root)
+
+            if best_leaf is None:
+                self.__make_computation_batch()
+                continue
+            best_leaf.lock = True
 
             # end game
             if best_leaf.state.is_game_over():
                 result = self.__validate_game(best_leaf.state)
                 self.__backpropagation(best_leaf, result)
-            else:
-                value, policy = self.model(
-                    torch.tensor(best_leaf.state.encode(), device=self.model.device).unsqueeze(0).float()
-                )
+                best_leaf.lock = False
+                continue
 
-                value = value.item()
-                policy = torch.softmax(policy, dim=1).squeeze(0).cpu().numpy()
-                policy *= best_leaf.state.get_available_moves_mask()
-                if np.sum(policy) == 0:
-                    # neural network returned no valid moves
-                    self.__backpropagation(best_leaf, -1)
-                    continue
-                policy /= policy.sum()
+            self.computation_list.append(best_leaf)
 
-                self.__backpropagation(best_leaf, value)
-                self.__expansion(policy, best_leaf)
+            if len(self.computation_list) == self.max_parallel_computations or sim_number == self.sim_count - 1:
+                self.__make_computation_batch()
 
         probabilities = np.zeros(state.action_size)
         for child in root.children:
@@ -76,6 +74,29 @@ class AMCTS:
             probabilities[child.move] = child.total_visits
         probabilities /= probabilities.sum()
         return probabilities
+
+    @torch.no_grad()
+    def __make_computation_batch(self):
+        encoded_states = np.array([node.state.encode() for node in self.computation_list], dtype=np.float32)
+        values, policies = self.model(
+            torch.tensor(encoded_states, dtype=torch.float32).to(self.model.device)
+        )
+
+        for i in range(len(self.computation_list)):
+            value = values[i].item()
+            policy = torch.softmax(policies[i], dim=0).cpu().numpy()
+            policy *= self.computation_list[i].state.get_available_moves_mask()
+
+            if np.sum(policy) == 0:
+                # neural network returned no valid moves
+                self.__backpropagation(self.computation_list[i], -1)
+                continue
+            policy /= policy.sum()
+
+            self.__backpropagation(self.computation_list[i], value)
+            self.__expansion(policy, self.computation_list[i])
+            self.computation_list[i].lock = False
+        self.computation_list.clear()
 
     def __validate_game(self, state: BoardPlus):
         winner = state.result()
@@ -89,6 +110,8 @@ class AMCTS:
         best_child = None
         best_score = -math.inf
         for child in node.children:
+            if child.lock:
+                continue
             score = child.get_ucb_score(self.c_param)
             if score > best_score:
                 best_score = score
@@ -96,7 +119,7 @@ class AMCTS:
         return best_child
 
     def __selection(self, node: MCTSNode):
-        while not node.is_leaf_node():
+        while node is not None and not node.is_leaf_node():
             node = self.__get_best_child(node)
         return node
 
