@@ -44,7 +44,7 @@ class ModelEvaluator(Logger):
         plt.title('Value Loss Over Model Versions')
         plt.legend()
 
-        plt.show()
+        plt.savefig(plot_path)
         self.info(f"Saved losses plot to {plot_path}")
 
     @staticmethod
@@ -53,7 +53,7 @@ class ModelEvaluator(Logger):
         return [data[i] for i in range(0, len(data), skip_factor+1)]
 
     def __get_losses(self, net, models_folder_path: str, skip_factor: int):
-
+        self.info("Loading model files")
         files = {}
         for file_name in os.listdir(models_folder_path):
             data = torch.load(os.path.join(models_folder_path, file_name), weights_only=False)
@@ -81,7 +81,7 @@ class ModelEvaluator(Logger):
         return learn_losses, test_losses
 
 
-    def save_confusion_matrix(self, plot_path: str = "confusion_matrix"):
+    def save_confusion_matrix(self, model_name: str, plot_path: str = "confusion_matrix"):
         plot_path += ".png"
         y_pred_value, y_true_value, y_pred_policy, y_true_policy = ChessModel(self.device).get_value_network_confusion_matrix(self.net, self.test_data_folder_path)
 
@@ -93,7 +93,9 @@ class ModelEvaluator(Logger):
 
 
         plt.imshow(cm_value, interpolation='nearest', cmap=plt.cm.Blues)
-        plt.title('Confusion Matrix for Value Network\n' + metrics_text)
+        plt.title('Confusion Matrix for Value Network\n' +
+                    f'Model: {model_name}\n' +
+                    metrics_text)
         tick_marks = range(2)
         plt.xticks(tick_marks, ['-1', '1'])
         plt.yticks(tick_marks, ['-1', '1'])

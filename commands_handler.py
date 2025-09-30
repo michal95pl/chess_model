@@ -16,6 +16,7 @@ class CommandsHandler(Logger):
         self.configs = ConfigFile('config.json')
         self.communicationHandler = None
         self.is_model_loaded = False
+        self.loaded_model_path = "*"
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.net = ChessNet(
@@ -51,10 +52,11 @@ class CommandsHandler(Logger):
             else:
                 ModelEvaluator(command[1], self.device, self.net).save_losses_plot(command[2], int(command[3]))
             self.is_model_loaded = False
+            self.loaded_model_path = "*"
         elif len(command) == 2 and command[0] == "confusion-matrix":
             if not self.is_model_loaded:
                 self.warning("Using untrained model. It's recommended to load a trained model before generating confusion matrix.")
-            ModelEvaluator(command[1], self.device, self.net).save_confusion_matrix()
+            ModelEvaluator(command[1], self.device, self.net).save_confusion_matrix(self.loaded_model_path)
         else:
             print("Unknown command. Type 'help' to see available commands.")
 
@@ -81,13 +83,15 @@ class CommandsHandler(Logger):
         print("convert-games <input_directory> <output_train_data_directory> <output_test_data_directory> - Convert PGN files to encoded format .rdg")
         print("load-model <model_path> - Load a pre-trained model")
         print("train-model <dataset_directory> <output_directory> - Train the model using dataset. dataset and output directory are optional")
-        print("evaluate-model <num_games> <plot_path> - Evaluate the model against Stockfish. plot_path are optional") #todo: rename
+        print("compare-model-to-stockfish <num_games> <plot_path> - Evaluate the model against Stockfish. plot_path are optional") #todo: rename
         print("show-loss <test_data_directory> <models_directory> <skip_factor> - Show loss plot for models in models_directory on test data. skip_factor is optional")
         print("confusion-matrix <test_data_directory> - Save confusion matrix for value network on test data")
 
     def __print_status(self):
-        print("Using: " + str(self.device))
+        print("Computation device: " + str(self.device))
         print("Model loaded: " + str(self.is_model_loaded))
+        if self.is_model_loaded:
+            print("Loaded model path: " + self.loaded_model_path)
         if self.communicationHandler is not None:
             print("Server is running on " + str(self.configs.get_config('server_ip')) + ":" + str(self.configs.get_config('server_port')))
             print("Games handled in this session: " + str(self.communicationHandler.get_games_handled()))
@@ -117,6 +121,7 @@ class CommandsHandler(Logger):
             self.optimizer.load_state_dict(checkpoint["optimizer"])
             self.info("model loaded successfully")
             self.is_model_loaded = True
+            self.loaded_model_path = command[1]
         except Exception as e:
             self.error(f"Error loading model or optimizer: {e}")
 
@@ -124,8 +129,10 @@ class CommandsHandler(Logger):
         eval = StockfishModelEvaluator(
             self.configs.get_config('stockfish_path'),
             AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'))
+            self.loaded_model_path,
+            int(self.configs.get_config('evaluation_seed'))
         )
         if len(command) == 2:
             eval.evaluate(int(command[1]), int(self.configs.get_config("stockfish_gen_moves")))
         else:
-            eval.evaluate(int(command[1]), int(self.configs.get_config("stockfish_gen_moves"), command[2]))
+            eval.evaluate(int(command[1]), int(self.configs.get_config("stockfish_gen_moves")), command[2])
