@@ -71,11 +71,17 @@ class PGNDataset(Logger):
         split_index = int(len(moves) * (1 - test_split_ratio))
         return (moves[0][split_index:], moves[1][split_index:], moves[2][split_index:]), (moves[0][:split_index], moves[1][:split_index], moves[2][:split_index])
 
+    def shuffle_games_dataset(self, moves: tuple):
+        combined = list(zip(moves[0], moves[1], moves[2]))
+        np.random.shuffle(combined)
+        return np.array([list(t) for t in zip(*combined)])
+
     def __save_games_data_to_file(self, moves: tuple, train_output_path: str, test_output_path: str, test_split_ratio: float):
         game_train_data_path = f"{train_output_path}/{PGNDataset.file_number}.rdg"
         game_test_data_path = f"{test_output_path}/{PGNDataset.file_number}.rdg"
 
-        train_data, test_data = PGNDataset.__split_moves(moves, test_split_ratio)
+        data = self.shuffle_games_dataset(moves)
+        train_data, test_data = PGNDataset.__split_moves(data, test_split_ratio)
 
         with open(game_train_data_path, "wb") as f:
             pickle.dump(train_data, f)
