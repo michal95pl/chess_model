@@ -15,15 +15,16 @@ class MCTSNode:
         self.total_reward = 0
         self.prior = prior
         self.lock = False
+        self.unobserved_samples = 0
 
-    def get_ucb_score(self, c_param):
+    def get_wu_uct_score(self, c_param):
         if self.total_visits == 0:
             exploitation = 0
         else:
             exploitation = self.total_reward / self.total_visits
             exploitation = 1 - (exploitation + 1) / 2
 
-        exploration = c_param * (math.sqrt(self.parent.total_visits) / (1 + self.total_visits)) * self.prior
+        exploration = c_param * (math.sqrt(self.parent.total_visits + self.unobserved_samples) / (1 + self.total_visits + self.unobserved_samples)) * self.prior
 
         return exploitation + exploration
 
@@ -63,14 +64,13 @@ class AMCTS:
                 continue
 
             self.computation_list.append(best_leaf)
+            self.__backpropagation_unobserved_samples(best_leaf)
 
             if len(self.computation_list) == self.max_parallel_computations or sim_number == self.sim_count - 1:
                 self.__make_computation_batch()
 
         probabilities = np.zeros(state.action_size)
         for child in root.children:
-            # if child.total_visits > 0:
-                # print(child.total_reward / child.total_visits, child.move)
             probabilities[child.move] = child.total_visits
         probabilities /= probabilities.sum()
         return probabilities
@@ -82,19 +82,19 @@ class AMCTS:
             torch.tensor(encoded_states, dtype=torch.float32).to(self.model.device)
         )
 
-        for i in range(len(self.computation_list)):
-            value = values[i].item()
-            policy = torch.softmax(policies[i], dim=0).cpu().numpy()
-            policy *= self.computation_list[i].state.get_available_moves_mask()
+        values = values.detach().squeeze(-1).cpu().numpy()
+        policies = torch.softmax(policies, dim=1).cpu().numpy()
+        policies *= np.array([node.state.get_available_moves_mask() for node in self.computation_list])
 
-            if np.sum(policy) == 0:
+        for i in range(len(self.computation_list)):
+            if np.sum(policies[i]) == 0:
                 # neural network returned no valid moves
                 self.__backpropagation(self.computation_list[i], -1)
                 continue
-            policy /= policy.sum()
+            policies[i] /= policies[i].sum()
 
-            self.__backpropagation(self.computation_list[i], value)
-            self.__expansion(policy, self.computation_list[i])
+            self.__backpropagation(self.computation_list[i], values[i])
+            self.__expansion(self.computation_list[i], policies[i])
             self.computation_list[i].lock = False
         self.computation_list.clear()
 
@@ -112,7 +112,7 @@ class AMCTS:
         for child in node.children:
             if child.lock:
                 continue
-            score = child.get_ucb_score(self.c_param)
+            score = child.get_wu_uct_score(self.c_param)
             if score > best_score:
                 best_score = score
                 best_child = child
@@ -127,18 +127,28 @@ class AMCTS:
         while node:
             node.total_reward += reward
             node.total_visits += 1
+            node.unobserved_samples = 0
 
             node = node.parent
             reward = -reward  # opponent's perspective
 
-    def __expansion(self, policy, node: MCTSNode):
-        for move_id in range(len(policy)):
-            if policy[move_id] > 0:
-                move = node.state.decode_move(move_id)
-                board_temp = node.state.__copy__()
+    def __backpropagation_unobserved_samples(self, node: MCTSNode):
+        while node:
+            node.unobserved_samples += 1
+            node = node.parent
 
-                board_temp.better_push(move)
-                board_temp.change_perspective()
+    def __expansion(self, node: MCTSNode, policy: np.ndarray):
 
-                new_node = MCTSNode(board_temp, node, move_id, policy[move_id])
-                node.children.append(new_node)
+        policy_mask = policy > 0
+        move_ids = np.arange(len(policy))[policy_mask]
+        policy_values = policy[policy_mask]
+
+        for i in range(len(move_ids)):
+            move = node.state.decode_move(move_ids[i])
+            board_temp = node.state.__copy__()
+
+            board_temp.better_push(move)
+            board_temp.change_perspective()
+
+            child_node = MCTSNode(board_temp, node, move_ids[i], policy_values[i])
+            node.children.append(child_node)

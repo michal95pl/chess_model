@@ -44,7 +44,7 @@ class CommandsHandler(Logger):
                 ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')), command[1], command[2])
         elif len(command) == 2 and command[0] == "load-model":
             self.__load_model(command)
-        elif (len(command) == 2 or len(command) == 3) and command[0] == "compare-model-to-stockfish":
+        elif (len(command) == 3 or len(command) == 2) and command[0] == "compare-model-to-stockfish":
             self.__compare_model_to_stockfish(command)
         elif (len(command) == 3 or len(command) == 4) and command[0] == "show-loss":
             if len(command) == 3:
@@ -57,6 +57,10 @@ class CommandsHandler(Logger):
             if not self.is_model_loaded:
                 self.warning("Using untrained model. It's recommended to load a trained model before generating confusion matrix.")
             ModelEvaluator(command[1], self.device, self.net).save_confusion_matrix(self.loaded_model_path)
+        elif (len(command) == 3 or len(command) == 4) and command[0] == "compare-mcts":
+            if not self.is_model_loaded:
+                self.warning("Using untrained model. It's recommended to load a trained model before comparing MCTS.")
+            self.__compare_mcts(command)
         else:
             print("Unknown command. Type 'help' to see available commands.")
 
@@ -77,15 +81,22 @@ class CommandsHandler(Logger):
 
     def __help_command(self):
         print("Available commands:")
-        print("print-status")
-        print("start-server - Run the chess model server")
-        print("stop-server - Stop the chess model server")
-        print("convert-games <input_directory> <output_train_data_directory> <output_test_data_directory> - Convert PGN files to encoded format .rdg")
-        print("load-model <model_path> - Load a pre-trained model")
-        print("train-model <dataset_directory> <output_directory> - Train the model using dataset. dataset and output directory are optional")
-        print("compare-model-to-stockfish <num_games> <plot_path> - Evaluate the model against Stockfish. plot_path are optional") #todo: rename
-        print("show-loss <test_data_directory> <models_directory> <skip_factor> - Show loss plot for models in models_directory on test data. skip_factor is optional")
-        print("confusion-matrix <test_data_directory> - Save confusion matrix for value network on test data")
+        print()
+        print(" General:")
+        print(" - print-status")
+        print(" - start-server - Run the chess model server")
+        print(" - stop-server - Stop the chess model server")
+        print()
+        print(" Model and dataset management:")
+        print(" - convert-games <input_directory> <output_train_data_directory> <output_test_data_directory> - Convert PGN files to encoded format .rdg")
+        print(" - load-model <model_path> - Load a pre-trained model")
+        print(" - train-model <dataset_directory> [output_directory] - Train the model using dataset.")
+        print()
+        print(" Model evaluation:")
+        print(" - compare-model-to-stockfish <num_games> [path] - Evaluate the model against Stockfish. Saves evaluation plot and games in path")
+        print(" - show-loss <test_data_directory> <models_directory> [skip_factor] - Show loss plot for models in models_directory on test data")
+        print(" - confusion-matrix <test_data_directory> - Save confusion matrix for value network on test data")
+        print(" - compare-mcts <num_simulations_opponent> <num_simulations_opponent> [path] - Compare the current loaded model with another MCTS. Saves comparison plot and game in path")
 
     def __print_status(self):
         print("Computation device: " + str(self.device))
@@ -132,7 +143,28 @@ class CommandsHandler(Logger):
             self.loaded_model_path,
             int(self.configs.get_config('evaluation_seed'))
         )
-        if len(command) == 2:
-            eval.evaluate(int(command[1]), int(self.configs.get_config("stockfish_gen_moves")))
-        else:
+        if len(command) == 3:
             eval.evaluate(int(command[1]), int(self.configs.get_config("stockfish_gen_moves")), command[2])
+        else:
+            eval.evaluate(int(command[1]), int(self.configs.get_config("stockfish_gen_moves")))
+
+    def __compare_mcts(self, command: list):
+        sme = StockfishModelEvaluator(
+            self.configs.get_config('stockfish_path'),
+            AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'),
+                  self.configs.get_config('parallel_computations')),
+            self.loaded_model_path,
+            int(self.configs.get_config('evaluation_seed'))
+        )
+
+        if len(command) == 3:
+            sme.compare_to(
+                AMCTS(int(command[1]), self.net, self.configs.get_config('mcts_c_param'),
+                      int(command[2]))
+            )
+        else:
+            sme.compare_to(
+                AMCTS(int(command[1]), self.net, self.configs.get_config('mcts_c_param'),
+                      int(command[2])),
+                command[3]
+            )

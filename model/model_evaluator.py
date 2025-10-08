@@ -33,7 +33,7 @@ class ModelEvaluator(Logger):
         plt.plot(test_policy_loss, label='Test Policy Loss', color='orange')
         plt.xlabel('Model Version')
         plt.ylabel('Loss')
-        plt.title('Policy Loss Over Model Versions')
+        plt.title('Policy Loss')
         plt.legend()
 
         plt.subplot(1, 2, 2)
@@ -41,7 +41,7 @@ class ModelEvaluator(Logger):
         plt.plot(test_value_loss, label='Test Value Loss', color='orange')
         plt.xlabel('Model Version')
         plt.ylabel('Loss')
-        plt.title('Value Loss Over Model Versions')
+        plt.title('Value Loss')
         plt.legend()
 
         plt.savefig(plot_path)
