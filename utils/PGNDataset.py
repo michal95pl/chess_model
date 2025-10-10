@@ -74,7 +74,8 @@ class PGNDataset(Logger):
     def shuffle_games_dataset(self, moves: tuple):
         combined = list(zip(moves[0], moves[1], moves[2]))
         np.random.shuffle(combined)
-        return np.array([list(t) for t in zip(*combined)])
+        combined = [list(t) for t in zip(*combined)]
+        return combined[0], combined[1], combined[2]
 
     def __save_games_data_to_file(self, moves: tuple, train_output_path: str, test_output_path: str, test_split_ratio: float):
         game_train_data_path = f"{train_output_path}/{PGNDataset.file_number}.rdg"
