@@ -141,12 +141,13 @@ class CommandsHandler(Logger):
             self.configs.get_config('stockfish_path'),
             AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'),  self.configs.get_config('parallel_computations')),
             self.loaded_model_path,
+            int(self.configs.get_config("stockfish_gen_moves")),
             int(self.configs.get_config('evaluation_seed'))
         )
         if len(command) == 3:
-            eval.evaluate(int(command[1]), int(self.configs.get_config("stockfish_gen_moves")), command[2])
+            eval.evaluate(int(command[1]), command[2])
         else:
-            eval.evaluate(int(command[1]), int(self.configs.get_config("stockfish_gen_moves")))
+            eval.evaluate(int(command[1]))
 
     def __compare_mcts(self, command: list):
         sme = StockfishModelEvaluator(
