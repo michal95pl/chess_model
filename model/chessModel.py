@@ -26,7 +26,7 @@ class ChessModel(Logger):
 
         if '/' not in output_path:
             self.warning("Learn output path does not contain folder path. Files will be saved in the main project directory.")
-        elif not os.path.exists(output_path.split('/')[0]):
+        elif not os.path.exists(os.path.dirname(output_path)):
             self.error("Provided folder in learn output path does not exist.")
             return
 
@@ -84,9 +84,9 @@ class ChessModel(Logger):
     """
     @torch.no_grad()
     def get_model_loss(self, net, data_folder_path: str):
-        avg_policy_loss = 0
-        avg_value_loss = 0
-        cnt = 0
+        avg_policy_losses = []
+        avg_value_losses = []
+        net.eval()
         for file_name in os.listdir(data_folder_path):
             file_data = pickle.load(open(os.path.join(data_folder_path, file_name), "rb"))
             moves, boards, wins = file_data
@@ -99,11 +99,10 @@ class ChessModel(Logger):
 
             loss_policy = torch.nn.functional.cross_entropy(policy, moves)
             loss_value = torch.nn.functional.mse_loss(value, wins)
-            avg_policy_loss += loss_policy.item()
-            avg_value_loss += loss_value.item()
-            cnt += 1
+            avg_policy_losses.append(loss_policy.cpu().item())
+            avg_value_losses.append(loss_value.cpu().item())
 
-        return avg_policy_loss / cnt, avg_value_loss / cnt
+        return np.mean(avg_policy_losses), np.mean(avg_value_losses)
 
     @torch.no_grad()
     def get_value_network_confusion_matrix(self, net, test_data_path):
