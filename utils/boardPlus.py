@@ -4,7 +4,7 @@ import numpy as np
 
 class BoardPlus(chess.Board):
 
-    def __init__(self, fen=None, chess960=False):
+    def __init__(self, fen=None, chess960=False, changed_perspective=False):
         if fen is not None:
             super().__init__(fen, chess960=chess960)
         else:
@@ -12,7 +12,7 @@ class BoardPlus(chess.Board):
         self.row_count = 8
         self.column_count = 8
         self.action_size = 6272
-        self.changed_perspective = False
+        self.changed_perspective = changed_perspective
 
     def __copy__(self):
         new_board = BoardPlus(self.fen())
