@@ -5,6 +5,7 @@ from model.chess_mctsnn import AMCTS
 import time
 from utils.boardPlus import BoardPlus
 import numpy as np
+from model.multiprocess_chess_mcts import ParallelAMCTS
 
 class CommunicationHandler(Thread, Logger):
 
@@ -15,7 +16,8 @@ class CommunicationHandler(Thread, Logger):
         self.mcts = mcts
         self.running = True
         self.games_handled = 0
-        self.start()
+        # self.start()
+        self.run()
 
     def run(self):
         self.info("Waiting for messages")
@@ -24,8 +26,8 @@ class CommunicationHandler(Thread, Logger):
                 message = self.communication.get_first_message()
                 conn, command = message
                 if command['command'] == 'get_move':
-                    save_time = time.time()
                     board = BoardPlus(command['board'])
+                    save_time = time.time()
                     prob = self.mcts.search(board)
                     move_id = np.argmax(prob)
                     move_mcts = board.decode_move(move_id)
@@ -36,7 +38,7 @@ class CommunicationHandler(Thread, Logger):
                         "move": str(move_mcts)
                     }, conn)
                 self.games_handled += 1
-            time.sleep(0.1)
+            time.sleep(1)
 
     def stop(self):
         self.running = False
