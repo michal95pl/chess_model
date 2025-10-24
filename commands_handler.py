@@ -9,6 +9,7 @@ from communicationHandler import CommunicationHandler
 from model.chess_mctsnn import AMCTS
 from model.stockfish_model_evaluator import StockfishModelEvaluator
 from model.model_evaluator import ModelEvaluator
+from model.multiprocess_chess_mcts import ParallelAMCTS
 
 class CommandsHandler(Logger):
     def __init__(self):
@@ -111,9 +112,10 @@ class CommandsHandler(Logger):
         if self.communicationHandler is None:
             if not self.is_model_loaded:
                 self.warning("Using untrained model. It's recommended to load a trained model before starting the server.")
+
             self.communicationHandler = CommunicationHandler(
                 Communication(int(self.configs.get_config('server_port')), self.configs.get_config('server_ip')),
-                AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'), self.configs.get_config('parallel_computations')),
+                self.__get_mcts()
             )
         else:
             self.info("server is running")
@@ -139,7 +141,7 @@ class CommandsHandler(Logger):
     def __compare_model_to_stockfish(self, command: list):
         eval = StockfishModelEvaluator(
             self.configs.get_config('stockfish_path'),
-            AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'),  self.configs.get_config('parallel_computations')),
+            self.__get_mcts(),
             self.loaded_model_path,
             int(self.configs.get_config("stockfish_gen_moves")),
             int(self.configs.get_config('evaluation_seed'))
@@ -169,3 +171,9 @@ class CommandsHandler(Logger):
                       int(command[2])),
                 command[3]
             )
+
+    def __get_mcts(self):
+        if bool(self.configs.get_config("multiprocessing_mcts")):
+            return ParallelAMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'), self.configs.get_config('number_of_processes'))
+        else:
+            return AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'), self.configs.get_config('parallel_computations')),

@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 class StockfishModelEvaluator(Logger):
 
-    def __init__(self, stockfish_path: str, mcts: AMCTS, model_name: str, multipv, seed: int = 42):
+    def __init__(self, stockfish_path: str, mcts, model_name: str, multipv, seed: int = 42):
         super().__init__()
         self.model_name = model_name
         self.rng = np.random.default_rng(seed)
@@ -148,6 +148,7 @@ class StockfishModelEvaluator(Logger):
         self.info("Evaluation plot saved to " + save_path)
 
     def __create_comparison_plot(self, scores, mcts_opponent: AMCTS, save_path: str):
+        plt.figure(figsize=(10, 6))
         plt.plot(scores)
         plt.xlabel('Move Number')
         plt.ylabel('Evaluation Score')

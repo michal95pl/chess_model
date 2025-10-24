@@ -1,15 +1,13 @@
 from threading import Thread
 from utils.logger import Logger
 from communication import Communication
-from model.chess_mctsnn import AMCTS
 import time
 from utils.boardPlus import BoardPlus
 import numpy as np
-from model.multiprocess_chess_mcts import ParallelAMCTS
 
 class CommunicationHandler(Thread, Logger):
 
-    def __init__(self, communication: Communication, mcts: AMCTS):
+    def __init__(self, communication: Communication, mcts):
         Thread.__init__(self)
         Logger.__init__(self)
         self.communication = communication

@@ -40,7 +40,7 @@ class ChessModel(Logger):
                     try:
                         file_data = pickle.load(open(file_name, "rb"))
                         moves, boards, wins = file_data
-                        ChessModel.shuffle_arrays(moves, boards, wins)
+                        moves, boards, wins = ChessModel.shuffle_arrays(moves, boards, wins)
                         moves = torch.tensor(moves, device=self.device).float()
                         boards = torch.tensor(boards, device=self.device).float()
                         wins = torch.tensor(wins, device=self.device).float()
