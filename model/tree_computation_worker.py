@@ -59,7 +59,7 @@ class TreeComputationWorker:
     @staticmethod
     def backpropagate_stats(tree, id_node):
         while id_node != -1:
-            tree[id_node]['total_visit'] += 1
+            # tree[id_node]['total_visit'] += 1 # todo: sprawdzić
             tree[id_node]['unobserved_samples'] += 1
             id_node = tree[id_node]['parent_id']
 
@@ -99,8 +99,7 @@ class TreeComputationWorker:
             while node_id != -1:
                 tree[node_id]['total_reward'] += reward
                 tree[node_id]['unobserved_samples'] -= 1
-                # if tree[node_id]['unobserved_samples'] < 0:
-                    # print(tree[node_id]['unobserved_samples'])
+                tree[node_id]['total_visit'] += 1
                 node_id = tree[node_id]['parent_id']
                 reward = -reward  # opponent's perspective
 
