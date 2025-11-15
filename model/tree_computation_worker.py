@@ -105,13 +105,15 @@ class TreeComputationWorker:
 
     @staticmethod
     def get_wu_uct_score(tree, id_node, c_param):
+        parent_id = tree[id_node]['parent_id']
+
         if tree[id_node]['total_visit'] == 0:
-            exploitation = 0
+            # FPU
+            exploitation = tree[parent_id]['total_reward'] / tree[parent_id]['total_visit']
         else:
             exploitation = tree[id_node]['total_reward'] / tree[id_node]['total_visit']
             exploitation = 1 - (exploitation + 1) / 2
 
-        parent_id = tree[id_node]['parent_id']
         exploration = c_param * (math.sqrt(tree[parent_id]['total_visit'] + tree[id_node]['unobserved_samples']) / (
                 1 + tree[id_node]['total_visit'] + tree[id_node]['unobserved_samples'])) * tree[id_node]['prior']
 
