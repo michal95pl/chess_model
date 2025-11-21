@@ -15,3 +15,6 @@ class ConfigFile:
 
     def get_config(self, key):
         return self.config.get(key, None)
+
+    def get_config2(self, key1, key2):
+        return self.config[key1][key2]
