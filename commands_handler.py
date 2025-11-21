@@ -23,7 +23,6 @@ class CommandsHandler(Logger):
         self.net = ChessNet(
             int(self.configs.get_config("num_hidden_layers")),
             int(self.configs.get_config("num_residual_blocks")),
-            device=self.device
         )
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.001)
 
@@ -38,10 +37,12 @@ class CommandsHandler(Logger):
             self.__stop_server()
         elif len(command) == 4 and command[0] == 'convert-games':
             PGNDataset().encode_directory(command[1], command[2], command[3], int(self.configs.get_config('max_games_per_train_file')), float(self.configs.get_config('test_split_ratio')))
-        elif (len(command) == 1 or len(command) == 3) and command[0] == 'train-model':
+        elif (len(command) <= 3) and command[0] == 'train-model':
             if len(command) == 1:
                 ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')))
-            else:
+            elif len(command) == 2:
+                ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')), command[1])
+            elif len(command) == 3:
                 ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')), command[1], command[2])
         elif len(command) == 2 and command[0] == "load-model":
             self.__load_model(command)
@@ -91,7 +92,7 @@ class CommandsHandler(Logger):
         print(" Model and dataset management:")
         print(" - convert-games <input_directory> <output_train_data_directory> <output_test_data_directory> - Convert PGN files to encoded format .rdg")
         print(" - load-model <model_path> - Load a pre-trained model")
-        print(" - train-model <dataset_directory> [output_directory] - Train the model using dataset.")
+        print(" - train-model [dataset_directory] [output_directory] - Train the model using dataset.")
         print()
         print(" Model evaluation:")
         print(" - compare-model-to-stockfish <num_games> [path] - Evaluate the model against Stockfish. Saves evaluation plot and games in path")

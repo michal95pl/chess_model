@@ -6,6 +6,9 @@ import pickle
 import torch
 import os
 import datetime
+from accelerate import Accelerator
+from model.netDataset import NetDataset
+from torch.utils.data import DataLoader
 
 class ChessModel(Logger):
 
@@ -22,7 +25,6 @@ class ChessModel(Logger):
 
 
     def train(self, net, optimizer, epochs, data_path = "train_converted_dataset", output_path="learn_files/"):
-        file_names = [data_path + '/' + f for f in os.listdir(data_path)]
 
         if '/' not in output_path:
             self.warning("Learn output path does not contain folder path. Files will be saved in the main project directory.")
@@ -30,44 +32,48 @@ class ChessModel(Logger):
             self.error("Provided folder in learn output path does not exist.")
             return
 
+        accel = Accelerator()
+        dataset = NetDataset(data_path)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=1,
+            shuffle=True,
+            num_workers=4,
+            collate_fn=NetDataset.identity_collate_fn,
+            pin_memory=True
+        )
+        net, optimizer, dataloader = accel.prepare(net, optimizer, dataloader)
+        net.train()
+
         for i in range(epochs):
-            random.shuffle(file_names)
             policy_losses = []
             value_losses = []
 
-            with tqdm(total=len(file_names), desc=f"Epoch {i}") as pbar:
-                for file_name in file_names:
-                    try:
-                        file_data = pickle.load(open(file_name, "rb"))
-                        moves, boards, wins = file_data
-                        moves, boards, wins = ChessModel.shuffle_arrays(moves, boards, wins)
-                        moves = torch.tensor(moves, device=self.device).float()
-                        boards = torch.tensor(boards, device=self.device).float()
-                        wins = torch.tensor(wins, device=self.device).float()
+            with tqdm(total=len(dataloader), desc=f"Epoch {i+1}/{epochs}", colour="green") as pbar:
+                for batch in dataloader:
+                    optimizer.zero_grad()
+                    moves, boards, wins = batch
 
-                        value, policy = net(boards)
-                        value = value.squeeze(1)
+                    value, policy = net(boards)
 
-                        loss_policy = torch.nn.functional.cross_entropy(policy, moves)
-                        loss_value = torch.nn.functional.mse_loss(value, wins)
-                        loss = loss_policy + loss_value
+                    value = value.squeeze(1)
 
-                        optimizer.zero_grad()
-                        loss.backward()
-                        optimizer.step()
+                    loss_policy = torch.nn.functional.cross_entropy(policy, moves)
+                    loss_value = torch.nn.functional.mse_loss(value, wins)
+                    loss = loss_policy + loss_value
 
-                        policy_losses.append(loss_policy.cpu().item())
-                        value_losses.append(loss_value.cpu().item())
-                        pbar.set_postfix(
-                            avg_loss=np.mean(policy_losses + value_losses),
-                            avg_policy_loss=np.mean(policy_losses),
-                            avg_value_loss=np.mean(value_losses),
-                        )
-                    except Exception as e:
-                        self.error(f"Error processing file {file_name}: {e}")
-                        continue
-                    finally:
-                        pbar.update(1)
+                    loss.backward()
+                    optimizer.step()
+
+                    policy_losses.append(loss_policy.cpu().item())
+                    value_losses.append(loss_value.cpu().item())
+
+                    pbar.set_postfix(
+                        avg_loss=np.mean(policy_losses + value_losses),
+                        avg_policy_loss=np.mean(policy_losses),
+                        avg_value_loss=np.mean(value_losses),
+                    )
+                    pbar.update(1)
             torch.save({
                     "model" : net.state_dict(),
                     "optimizer" : optimizer.state_dict(),
