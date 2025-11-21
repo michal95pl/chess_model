@@ -20,4 +20,7 @@
   "stockfish_path": "stockfish/stockfish-ubuntu-x86-64-avx2",
   "stockfish_gen_moves": 2,
   "evaluation_seed": 43
+  "startCommands": {
+
+  }
 }

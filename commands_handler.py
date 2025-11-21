@@ -78,6 +78,12 @@ class CommandsHandler(Logger):
         print("Chess Model Application")
         print("Type 'help' to see available commands")
         while True:
+            run_commands = self.configs.get_config("startCommands")
+            for cmd in run_commands:
+                command = cmd + ' ' + self.configs.get_config2("startCommands", cmd)
+                self.info("Executing command: " + command)
+                self.__command_handler(command.split(' '))
+
             command = input("> ").split(' ')
             self.__command_handler(command)
 
