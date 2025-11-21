@@ -27,94 +27,69 @@ class BoardPlus(chess.Board):
             # 0 - left, 1 - forward, 2 - right
             move_index = move.to_square - move.from_square - 7
             if move.promotion == chess.KNIGHT:
-                return 84 + move_index
+                return 64 + move_index
             if move.promotion == chess.BISHOP:
-                return 87 + move_index
+                return 67 + move_index
             if move.promotion == chess.ROOK:
-                return 90 + move_index
+                return 70 + move_index
             if move.promotion == chess.QUEEN:
-                return 93 + move_index
+                return 73 + move_index
 
         # castling
         if self.is_kingside_castling(move):
-            return 96
+            return 76
         if self.is_queenside_castling(move):
-            return 97
-
-        if piece.piece_type == chess.PAWN:
-            # 1 square forward
-            if abs(move.from_square - move.to_square) == 8:
-                return 0
-            # 2 squares forward
-            if abs(move.from_square - move.to_square) == 16:
-                return 1
-            # capture left
-            if abs(move.from_square - move.to_square) == 7:
-                return 2
-            # capture right
-            if abs(move.from_square - move.to_square) == 9:
-                return 3
+            return 77
 
         elif piece.piece_type == chess.KNIGHT:
             knight_moves = {
-                6: 4,
-                10: 5,
-                15: 6,
-                17: 7,
-                -6: 8,
-                -10: 9,
-                -15: 10,
-                -17: 11
+                6: 0,
+                10: 1,
+                15: 2,
+                17: 3,
+                -6: 4,
+                -10: 5,
+                -15: 6,
+                -17: 7
             }
             move_diff = move.from_square - move.to_square
             if move_diff in knight_moves:
                 return knight_moves[move_diff]
 
-        elif piece.piece_type == chess.BISHOP:
+        elif piece.piece_type == chess.QUEEN or piece.piece_type == chess.ROOK or piece.piece_type == chess.BISHOP or chess.KING or piece.piece_type == chess.PAWN:
             # right
-            if move.from_square % 8 < move.to_square % 8:
-                return 12 + (move.to_square // 8)
+            if (move.to_square % 8) > (move.from_square % 8) and (move.to_square // 8) == (move.from_square // 8):
+                move_diff = move.to_square - move.from_square # max 7
+                return move_diff + 7 # [8, 14]
             # left
-            elif move.from_square % 8 > move.to_square % 8:
-                return 20 + (move.to_square // 8)
+            if (move.to_square % 8) < (move.from_square % 8) and (move.to_square // 8) == (move.from_square // 8):
+                move_diff = move.from_square - move.to_square # max 7
+                return move_diff + 14 # [15, 21]
+            # up
+            if (move.to_square % 8) == (move.from_square % 8) and (move.to_square // 8) > (move.from_square // 8):
+                move_diff = (move.to_square - move.from_square) // 8 # max 7
+                return move_diff + 21 # [22, 28]
+            # down
+            if (move.to_square % 8) == (move.from_square % 8) and (move.to_square // 8) < (move.from_square // 8):
+                move_diff = (move.from_square - move.to_square) // 8 # max 7
+                return move_diff + 28 # [29, 35]
+            # diagonal right up
+            if (move.to_square % 8) > (move.from_square % 8) and (move.to_square // 8) > (move.from_square // 8):
+                move_diff = (move.to_square % 8 - move.from_square % 8)
+                return move_diff + 35 # [36, 42]
+            # diagonal right down
+            if (move.to_square % 8) > (move.from_square % 8) and (move.to_square // 8) < (move.from_square // 8):
+                move_diff = (move.to_square % 8 - move.from_square % 8)
+                return move_diff + 42 # [43, 49]
+            # diagonal left up
+            if (move.to_square % 8) < (move.from_square % 8) and (move.to_square // 8) > (move.from_square // 8):
+                move_diff = (move.from_square % 8 - move.to_square % 8)
+                return move_diff + 49  # [50, 56]
+            # diagonal left down
+            if (move.to_square % 8) < (move.from_square % 8) and (move.to_square // 8) < (move.from_square // 8):
+                move_diff = (move.from_square % 8 - move.to_square % 8)
+                return move_diff + 56  # [57, 63]
 
-        elif piece.piece_type == chess.ROOK:
-            # horizontal
-            if move.from_square // 8 == move.to_square // 8:
-                return 28 + move.to_square % 8
-            # vertical
-            elif move.from_square % 8 == move.to_square % 8:
-                return 36 + move.to_square // 8
-
-        elif piece.piece_type == chess.QUEEN:
-            # horizontal
-            if move.from_square // 8 == move.to_square // 8:
-                return 44 + move.to_square % 8
-            # vertical
-            elif move.from_square % 8 == move.to_square % 8:
-                return 52 + move.to_square // 8
-            # diagonal left
-            elif move.from_square % 8 > move.to_square % 8:
-                return 60 + (move.to_square // 8)
-            # diagonal right
-            elif move.from_square % 8 < move.to_square % 8:
-                return 68 + (move.to_square // 8)
-
-        # king
-        elif piece.piece_type == chess.KING:
-            king_moves = {
-                1: 76,
-                -1: 77,
-                7: 78,
-                -7: 79,
-                8: 80,
-                -8: 81,
-                9: 82,
-                -9: 83
-            }
-            move_diff = move.from_square - move.to_square
-            if move_diff in king_moves:
-                return king_moves[move_diff]
 
         raise ValueError("Invalid move: {} to {}. Piece: {}".format(
             chess.square_name(move.from_square),
@@ -124,100 +99,68 @@ class BoardPlus(chess.Board):
 
     # works only for white perspective!
     def get_move_from_index(self, from_square: chess.Square, index) -> chess.Move:
-        if 84 <= index <= 95:
-            if index < 87:
-                return chess.Move(from_square, from_square + 7 + (index - 84), promotion=chess.KNIGHT)
-            elif index < 90:
-                return chess.Move(from_square, from_square + 7 + (index - 87), promotion=chess.BISHOP)
-            elif index < 93:
-                return chess.Move(from_square, from_square + 7 + (index - 90), promotion=chess.ROOK)
+        if 64 <= index <= 75:
+            if index < 67:
+                return chess.Move(from_square, from_square + 7 + (index - 64), promotion=chess.KNIGHT)
+            elif index < 70:
+                return chess.Move(from_square, from_square + 7 + (index - 67), promotion=chess.BISHOP)
+            elif index < 73:
+                return chess.Move(from_square, from_square + 7 + (index - 70), promotion=chess.ROOK)
             else:
-                return chess.Move(from_square, from_square + 7 + (index - 93), promotion=chess.QUEEN)
+                return chess.Move(from_square, from_square + 7 + (index - 73), promotion=chess.QUEEN)
 
         # kingside castling
-        if index == 96:
+        if index == 76:
             if from_square == chess.E1:
                 return chess.Move(from_square, chess.G1)
             elif from_square == chess.D1:
                 return chess.Move(from_square, chess.B1)
         # queenside castling
-        if index == 97:
+        if index == 77:
             if from_square == chess.E1:
                 return chess.Move(from_square, chess.C1)
             elif from_square == chess.D1:
                 return chess.Move(from_square, chess.F1)
 
-        # pawn moves
-        if 0 <= index <= 3:
-            pawn_diffs = [8, 16, 7, 9]
-            to_square = from_square + pawn_diffs[index]
-            return chess.Move(from_square, to_square)
-
         # knight moves
-        if 4 <= index <= 11:
+        if 0 <= index <= 7:
             knight_moves = [6, 10, 15, 17, -6, -10, -15, -17]
-            to_square = from_square - knight_moves[index - 4]
+            to_square = from_square - knight_moves[index]
             return chess.Move(from_square, to_square)
 
-        # Bishop moves
-        if 12 <= index <= 19:
-            # right
-            rank = index - 12
-            diff_rank = rank - (from_square // 8)
-            x = (from_square % 8) + abs(diff_rank)
-            y = (from_square // 8) + diff_rank
-            return chess.Move(from_square, (8 * y) + x)
-        if 20 <= index <= 27:
-            # left
-            rank = index - 20
-            diff_rank = rank - (from_square // 8)
-            x = (from_square % 8) - abs(diff_rank)
-            y = (from_square // 8) + diff_rank
-            return chess.Move(from_square, (8 * y) + x)
+        # right
+        if 8 <= index <= 14:
+            move_diff = index - 7
+            return chess.Move(from_square, from_square + move_diff)
+        # left
+        if 15 <= index <= 21:
+            move_diff = index - 14
+            return chess.Move(from_square, from_square - move_diff)
+        # up
+        if 22 <= index <= 28:
+            move_diff = index - 21
+            return chess.Move(from_square, from_square + move_diff * 8)
+        # down
+        if 29 <= index <= 35:
+            move_diff = index - 28
+            return chess.Move(from_square, from_square - move_diff * 8)
+        # diagonal right up
+        if 36 <= index <= 42:
+            move_diff = index - 35
+            return chess.Move(from_square, from_square + move_diff * 9)
+        # diagonal right down
+        if 43 <= index <= 49:
+            move_diff = index - 42
+            return chess.Move(from_square, from_square - move_diff * 7)
+        # diagonal left up
+        if 50 <= index <= 56:
+            move_diff = index - 49
+            return chess.Move(from_square, from_square + move_diff * 7)
+        # diagonal left down
+        if 57 <= index <= 63:
+            move_diff = index - 56
+            return chess.Move(from_square, from_square - move_diff * 9)
 
-        # Rook moves
-        if 28 <= index <= 35:
-            # horizontal
-            file = index - 28
-            diff_file = file - (from_square % 8)
-            return chess.Move(from_square, from_square + diff_file)
-        if 36 <= index <= 43:
-            # vertical
-            rank = index - 36
-            diff_rank = rank - (from_square // 8)
-            return chess.Move(from_square, from_square + (diff_rank * 8))
-
-        # Queen moves
-        if 44 <= index <= 51:
-            # horizontal
-            file = index - 44
-            diff_file = file - (from_square % 8)
-            return chess.Move(from_square, from_square + diff_file)
-        if 52 <= index <= 59:
-            # vertical
-            rank = index - 52
-            diff_rank = rank - (from_square // 8)
-            return chess.Move(from_square, from_square + (diff_rank * 8))
-        if 60 <= index <= 67:
-            # diagonal left
-            rank = index - 60
-            diff_rank = rank - (from_square // 8)
-            x = (from_square % 8) - abs(diff_rank)
-            y = (from_square // 8) + diff_rank
-            return chess.Move(from_square, (8 * y) + x)
-        if 68 <= index <= 75:
-            # diagonal right
-            rank = index - 68
-            diff_rank = rank - (from_square // 8)
-            x = (from_square % 8) + abs(diff_rank)
-            y = (from_square // 8) + diff_rank
-            return chess.Move(from_square, (8 * y) + x)
-
-        # King moves
-        if 76 <= index <= 83:
-            king_diffs = [1, -1, 7, -7, 8, -8, 9, -9]
-            to_square = from_square - king_diffs[index - 76]
-            return chess.Move(from_square, to_square)
 
         raise ValueError("Invalid move index: {}".format(index))
 
@@ -287,7 +230,7 @@ class BoardPlus(chess.Board):
 
     def get_available_moves_mask(self):
         available_moves = list(self.legal_moves)
-        action_vector = np.zeros((8, 8, 98), dtype=int)
+        action_vector = np.zeros((8, 8, 78), dtype=int)
         for move in available_moves:
             action_vector[move.from_square // 8][move.from_square % 8][self.get_move_index(move)] = 1
         return action_vector.flatten()
@@ -296,7 +239,7 @@ class BoardPlus(chess.Board):
         """
         Return action vector of 6272 (8x8x98) elements. 1 if the move was made
         """
-        action_vector = np.zeros((8, 8, 98), dtype=int)
+        action_vector = np.zeros((8, 8, 78), dtype=int)
         action_vector[move.from_square // 8][move.from_square % 8][self.get_move_index(move)] = 1
         return action_vector.flatten()
 
@@ -304,8 +247,8 @@ class BoardPlus(chess.Board):
         """
         Decode action vector of 6272 (8x8x98) elements to chess.Move.
         """
-        from_square = index // 98
-        move_index = index % 98
+        from_square = index // 78
+        move_index = index % 78
         from_square = chess.square(from_square % 8, from_square // 8)
         return self.get_move_from_index(from_square, move_index)
 

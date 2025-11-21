@@ -5,7 +5,7 @@ import torch
 
 class ChessNet(nn.Module):
 
-    def __init__(self, num_hidden, num_resBlocks, device: torch.device):
+    def __init__(self, num_hidden, num_resBlocks):
         super().__init__()
 
         self.device = device
@@ -24,7 +24,7 @@ class ChessNet(nn.Module):
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(32 * 8 * 8, 6272)
+            nn.Linear(32 * 8 * 8, 4992)
         )
 
         self.valueHead = nn.Sequential(
@@ -35,7 +35,6 @@ class ChessNet(nn.Module):
             nn.Linear(3 * 8 * 8, 1),
             nn.Tanh()
         )
-        self.to(device)
 
     def forward(self, x):
         x = self.start_block(x)
@@ -62,3 +61,24 @@ class ResBlock(nn.Module):
         x += residual
         x = F.relu(x)
         return x
+
+import visualtorch
+import matplotlib.pyplot as plt
+device = torch.device("cpu")
+model = ChessNet(80, 3)
+
+img = visualtorch.graph_view(
+    model,
+    input_shape=(1, 13, 8, 8),
+    to_file="chessNet_graph.png"
+)
+
+# img = visualtorch.layered_view(
+#     model,
+#     input_shape=(1, 13, 8, 8)
+# )
+
+# plt.axis('off')
+# plt
+# plt.imshow(img)
+# plt.show()
