@@ -19,11 +19,12 @@ class CommandsHandler(Logger):
         self.is_model_loaded = False
         self.loaded_model_path = "*"
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device(("cuda:" + str(self.configs.get_config("gpu_index"))) if torch.cuda.is_available() else "cpu")
         self.net = ChessNet(
             int(self.configs.get_config("num_hidden_layers")),
             int(self.configs.get_config("num_residual_blocks")),
         )
+        self.net.to(self.device)
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.001)
 
     def __command_handler(self, command: list):

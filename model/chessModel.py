@@ -6,7 +6,6 @@ import pickle
 import torch
 import os
 import datetime
-from accelerate import Accelerator
 from model.netDataset import NetDataset
 from torch.utils.data import DataLoader
 
@@ -32,7 +31,6 @@ class ChessModel(Logger):
             self.error("Provided folder in learn output path does not exist.")
             return
 
-        accel = Accelerator()
         dataset = NetDataset(data_path)
         dataloader = DataLoader(
             dataset,
@@ -42,7 +40,6 @@ class ChessModel(Logger):
             collate_fn=NetDataset.identity_collate_fn,
             pin_memory=True
         )
-        net, optimizer, dataloader = accel.prepare(net, optimizer, dataloader)
         net.train()
 
         for i in range(epochs):
@@ -53,6 +50,7 @@ class ChessModel(Logger):
                 for batch in dataloader:
                     optimizer.zero_grad()
                     moves, boards, wins = batch
+                    moves, boards, wins = moves.to(self.device), boards.to(self.device), wins.to(self.device)
 
                     value, policy = net(boards)
 
