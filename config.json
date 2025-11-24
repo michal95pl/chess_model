@@ -5,7 +5,9 @@
   "max_games_per_train_file": 10,
   "test_split_ratio": 0.2,
 
-  "num_hidden_layers": 50,
+  "num_backbone_filters": 50,
+  "num_policy_filters": 30,
+  "num_value_filters": 3,
   "num_residual_blocks": 20,
   "epochs": 200,
 

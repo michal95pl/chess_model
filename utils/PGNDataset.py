@@ -1,5 +1,7 @@
 import os
 
+from sympy.physics.units.definitions.unit_definitions import statampere
+
 from utils.boardPlus import BoardPlus
 import chess.pgn
 import numpy as np
@@ -28,32 +30,68 @@ class PGNDataset(Logger):
         return board_list
 
     @staticmethod
-    def white_win(game: chess.pgn.Game) -> int:
+    def get_game_result(game: chess.pgn.Game, changed_perspective: bool) -> np.ndarray:
         """
         Check if white won the game
         """
         result = game.root().headers['Result']
-        if result == '1-0' or result == '1/2-1/2':
-            return 1
-        return -1
+        temp = np.zeros(3, dtype=np.int8)
 
+        if changed_perspective:
+            if result == '1-0':
+                temp[2] = 1
+            elif result == '0-1':
+                temp[0] = 1
+        else:
+            if result == '1-0':
+                temp[0] = 1
+            elif result == '0-1':
+                temp[2] = 1
+
+        if result == '1/2-1/2':
+            temp[1] = 1
+
+        return temp
+
+    @staticmethod
+    def get_boards_with_piece_index_from_board_history(board_history: list, changed_perspective, number_of_boards: int = 2):
+        temp = []
+        number_empty_boards = number_of_boards - len(board_history) if len(board_history) < number_of_boards else 0
+
+        for _ in range(number_empty_boards):
+            temp.append(BoardPlus.get_empty_board_with_piece_index())
+
+        for b in board_history[-(number_of_boards - number_empty_boards):]:
+            board = b.__copy__()
+            if changed_perspective:
+                board.change_perspective()
+            temp.append(board.get_board_with_piece_index())
+
+        return temp
     def encode_game(self, game: chess.pgn.Game):
         board = BoardPlus()
-        real_board = chess.Board()  # is used to check if encoded board is correct
+        real_board = BoardPlus()  # is used to check if encoded board is correct and for history
 
         moves = []
         boards = []
-        wins = []
+        results = []
+        board_history = []
+
         for move in game.mainline_moves():
-            real_board.push(move)
-
+            changed_move = move
             if board.changed_perspective:
-                move = BoardPlus.change_move_perspective(move)
+                changed_move = BoardPlus.change_move_perspective(move)
 
-            moves.append(board.encode_move(move))
-            boards.append(board.encode())
-            wins.append(self.white_win(game) * (1 if not board.changed_perspective else -1))
-            board.better_push(move)
+            moves.append(board.get_move_index(changed_move))
+            temp = PGNDataset.get_boards_with_piece_index_from_board_history(board_history, board.changed_perspective)
+            temp.append(board.get_board_with_piece_index())
+            boards.append(temp)
+            results.append(PGNDataset.get_game_result(game, board.changed_perspective))
+
+            board_history.append(real_board.__copy__())
+
+            board.better_push(changed_move)
+            real_board.push(move)
 
             if not board.changed_perspective and not BoardPlus.compare_boards(board, real_board):
                 self.error(
@@ -61,7 +99,7 @@ class PGNDataset(Logger):
                         'White'] + " vs " + game.headers['Black'])
                 break
             board.change_perspective()
-        return np.array(moves), np.array(boards), np.array(wins)
+        return np.array(moves), np.array(boards), np.array(results)
 
     file_number = 0
     number_converted_games = 0
@@ -71,7 +109,8 @@ class PGNDataset(Logger):
         split_index = int(len(moves) * (1 - test_split_ratio))
         return (moves[0][split_index:], moves[1][split_index:], moves[2][split_index:]), (moves[0][:split_index], moves[1][:split_index], moves[2][:split_index])
 
-    def shuffle_games_dataset(self, moves: tuple):
+    @staticmethod
+    def shuffle_game_dataset(moves: tuple):
         combined = list(zip(moves[0], moves[1], moves[2]))
         np.random.shuffle(combined)
         combined = [list(t) for t in zip(*combined)]
@@ -81,7 +120,7 @@ class PGNDataset(Logger):
         game_train_data_path = f"{train_output_path}/{PGNDataset.file_number}.rdg"
         game_test_data_path = f"{test_output_path}/{PGNDataset.file_number}.rdg"
 
-        data = self.shuffle_games_dataset(moves)
+        data = PGNDataset.shuffle_game_dataset(moves)
         train_data, test_data = PGNDataset.__split_moves(data, test_split_ratio)
 
         with open(game_train_data_path, "wb") as f:

@@ -21,13 +21,18 @@ class CommandsHandler(Logger):
 
         self.device = torch.device(("cuda:" + str(self.configs.get_config("gpu_index"))) if torch.cuda.is_available() else "cpu")
         self.net = ChessNet(
-            int(self.configs.get_config("num_hidden_layers")),
             int(self.configs.get_config("num_residual_blocks")),
+            int(self.configs.get_config("num_backbone_filters")),
+            int(self.configs.get_config("num_policy_filters")),
+            int(self.configs.get_config("num_value_filters"))
         )
         self.net.to(self.device)
-        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.001)
+        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.001, weight_decay=1e-4)
 
     def __command_handler(self, command: list):
+        if command[-1] == '':
+            command.pop(-1)
+
         if len(command) == 1 and command[0] == 'help':
             self.__help_command()
         elif len(command) == 1 and command[0] == "print-status":

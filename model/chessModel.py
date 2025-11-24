@@ -40,6 +40,7 @@ class ChessModel(Logger):
             collate_fn=NetDataset.identity_collate_fn,
             pin_memory=True
         )
+
         net.train()
 
         for i in range(epochs):
@@ -48,16 +49,14 @@ class ChessModel(Logger):
 
             with tqdm(total=len(dataloader), desc=f"Epoch {i+1}/{epochs}", colour="green") as pbar:
                 for batch in dataloader:
-                    optimizer.zero_grad()
+                    optimizer.zero_grad(set_to_none=True)
                     moves, boards, wins = batch
                     moves, boards, wins = moves.to(self.device), boards.to(self.device), wins.to(self.device)
 
                     value, policy = net(boards)
 
-                    value = value.squeeze(1)
-
-                    loss_policy = torch.nn.functional.cross_entropy(policy, moves)
-                    loss_value = torch.nn.functional.mse_loss(value, wins)
+                    loss_policy = torch.nn.functional.cross_entropy(policy, moves, label_smoothing=0.01)
+                    loss_value = torch.nn.functional.cross_entropy(value, wins, label_smoothing=0.01)
                     loss = loss_policy + loss_value
 
                     loss.backward()
@@ -91,18 +90,27 @@ class ChessModel(Logger):
         avg_policy_losses = []
         avg_value_losses = []
         net.eval()
-        for file_name in os.listdir(data_folder_path):
-            file_data = pickle.load(open(os.path.join(data_folder_path, file_name), "rb"))
-            moves, boards, wins = file_data
-            moves = torch.tensor(moves, device=self.device).float()
-            boards = torch.tensor(boards, device=self.device).float()
-            wins = torch.tensor(wins, device=self.device).float()
+
+        dataset = NetDataset(data_folder_path)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=1,
+            shuffle=True,
+            num_workers=4,
+            collate_fn=NetDataset.identity_collate_fn,
+            pin_memory=True,
+            persistent_workers=True
+        )
+
+        for batch in dataloader:
+
+            moves, boards, wins = batch
+            moves, boards, wins = moves.to(self.device), boards.to(self.device), wins.to(self.device)
 
             value, policy = net(boards)
-            value = value.squeeze(1)
 
             loss_policy = torch.nn.functional.cross_entropy(policy, moves)
-            loss_value = torch.nn.functional.mse_loss(value, wins)
+            loss_value = torch.nn.functional.cross_entropy(value, wins)
             avg_policy_losses.append(loss_policy.cpu().item())
             avg_value_losses.append(loss_value.cpu().item())
 

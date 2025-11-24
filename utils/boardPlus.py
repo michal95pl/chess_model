@@ -19,7 +19,7 @@ class BoardPlus(chess.Board):
         new_board.changed_perspective = self.changed_perspective
         return new_board
 
-    def get_move_index(self, move: chess.Move):
+    def get_move_id(self, move: chess.Move):
         piece = self.piece_at(move.from_square)
 
         # promotion
@@ -213,39 +213,59 @@ class BoardPlus(chess.Board):
         ' ': 12
     }
 
-    def encode(self):
+    @staticmethod
+    def get_empty_board_with_piece_index():
+        return np.full((8, 8), 12)
+
+    def get_board_with_piece_index(self) -> np.ndarray:
         """
-        Encode board (8x8) to 13x8x8 array. Ech dimension contains 1 if the piece is present on the square
+        Encode board (8x8) to 8x8 array with numbers representing pieces (piece_mapper)
         """
-        board_list = np.zeros((13, 8, 8), dtype=int)
+        board_list = np.zeros((8, 8), dtype=np.uint8)
         for i in range(8):
             for j in range(8):
                 piece = self.piece_at(chess.square(j, 7 - i))
                 if piece is not None:
                     piece_type = piece.symbol()
-                    board_list[self.piece_mapper[piece_type]][i][j] = 1
+                    board_list[i][j] = self.piece_mapper[piece_type]
                 else:
-                    board_list[self.piece_mapper[' ']][i][j] = 1
+                    board_list[i][j] = 12
         return board_list
+
+    def encode(self) -> np.ndarray:
+        """
+        One hot encode board to (8x8x13)=832 array
+        """
+        board_array = self.get_board_with_piece_index()
+        one_hot = np.eye(13, dtype=np.uint8)[board_array]
+        return one_hot.flatten()
+
 
     def get_available_moves_mask(self):
         available_moves = list(self.legal_moves)
         action_vector = np.zeros((8, 8, 78), dtype=int)
         for move in available_moves:
-            action_vector[move.from_square // 8][move.from_square % 8][self.get_move_index(move)] = 1
+            action_vector[move.from_square // 8][move.from_square % 8][self.get_move_id(move)] = 1
         return action_vector.flatten()
 
-    def encode_move(self, move: chess.Move):
+    def get_move_index(self, move: chess.Move):
         """
-        Return action vector of 6272 (8x8x98) elements. 1 if the move was made
+        Encode move to move_id (0-4991).
+        Works only for white perspective!
         """
-        action_vector = np.zeros((8, 8, 78), dtype=int)
-        action_vector[move.from_square // 8][move.from_square % 8][self.get_move_index(move)] = 1
-        return action_vector.flatten()
+        return self.get_move_id(move) + (move.from_square * 78)
+
+    def encode_move(self, move_index) -> np.ndarray:
+        """
+        Return action vector of 4992 (8x8x78) elements. 1 if the move was made
+        """
+        action_vector = np.zeros(4992, dtype=np.uint8)
+        action_vector[move_index] = 1
+        return action_vector
 
     def decode_move(self, index) -> chess.Move:
         """
-        Decode action vector of 6272 (8x8x98) elements to chess.Move.
+        Decode move_id (0-4991) to chess.Move
         """
         from_square = index // 78
         move_index = index % 78

@@ -1,37 +1,38 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
+NUMBER_OF_MOVES = 4992
+HISTORY_PLANES = 3
 
 class ChessNet(nn.Module):
 
-    def __init__(self, num_hidden, num_resBlocks):
+    def __init__(self, num_res_blocks, num_backbone_filters, num_policy_filters, num_value_filters):
         super().__init__()
 
         self.start_block = nn.Sequential(
-            nn.Conv2d(13, num_hidden, kernel_size=3, padding=1),
-            nn.BatchNorm2d(num_hidden),
-            nn.ReLU()
+            nn.Conv2d(13 * HISTORY_PLANES, num_backbone_filters, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(num_backbone_filters),
+            nn.SiLU(inplace=True)  # instead of ReLU
         )
 
         self.back_bone = nn.ModuleList(
-            [ResBlock(num_hidden) for _ in range(num_resBlocks)]
+            [SeResBlock(num_backbone_filters) for _ in range(num_res_blocks)]
         )
 
         self.policyHead = nn.Sequential(
-            nn.Conv2d(num_hidden, 32, kernel_size=3, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(),
+            nn.Conv2d(num_backbone_filters, num_policy_filters, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(num_policy_filters),
+            nn.SiLU(inplace=True),
             nn.Flatten(),
-            nn.Linear(32 * 8 * 8, 4992)
+            nn.Linear(num_policy_filters * 8 * 8, NUMBER_OF_MOVES),
         )
 
         self.valueHead = nn.Sequential(
-            nn.Conv2d(num_hidden, 3, kernel_size=3, padding=1),
-            nn.BatchNorm2d(3),
-            nn.ReLU(),
+            nn.Conv2d(num_backbone_filters, num_value_filters, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(num_value_filters),
+            nn.SiLU(inplace=True),
             nn.Flatten(),
-            nn.Linear(3 * 8 * 8, 1),
-            nn.Tanh()
+            nn.Linear(num_value_filters * 8 * 8, 3),
         )
 
     def forward(self, x):
@@ -43,21 +44,42 @@ class ChessNet(nn.Module):
         value = self.valueHead(x)
         return value, policy
 
+# https://medium.com/@tahasamavati/squeeze-and-excitation-explained-387b5981f249
+class SELayer(nn.Module):
+    def __init__(self, num_channels, reduction=16):
+        super().__init__()
+        self.squeeze = nn.AdaptiveAvgPool2d(1) # avg for each channel
+        self.excitation = nn.Sequential(
+            nn.Linear(num_channels, num_channels // reduction, bias=False),
+            nn.SiLU(inplace=True), # instead of ReLU
+            nn.Linear(num_channels // reduction, num_channels, bias=False),
+            nn.Sigmoid()
+        )
 
-class ResBlock(nn.Module):
+    def forward(self, x):
+        batch_size, num_channels, _, _ = x.size()
+        y = self.squeeze(x).view(batch_size, num_channels) # (8x8) -> (1x1)
+        y = self.excitation(y).view(batch_size, num_channels, 1, 1)
+        return x * y.expand_as(x)
+
+
+class SeResBlock(nn.Module):
     def __init__(self, num_hidden):
         super().__init__()
-        self.conv1 = nn.Conv2d(num_hidden, num_hidden, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm2d(num_hidden)
-        self.conv2 = nn.Conv2d(num_hidden, num_hidden, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm2d(num_hidden)
+        self.path = nn.Sequential(
+            nn.Conv2d(num_hidden, num_hidden, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(num_hidden),
+            nn.SiLU(inplace=True), # instead of ReLU
+            nn.Conv2d(num_hidden, num_hidden, kernel_size=3, padding=1, bias=False), # bias false because of batchnorm
+            nn.BatchNorm2d(num_hidden),
+            SELayer(num_hidden)
+        )
 
     def forward(self, x):
         residual = x
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = self.bn2(self.conv2(x))
+        x = self.path(x)
         x += residual
-        x = F.relu(x)
+        x = F.silu(x, inplace=True) # instead of ReLU
         return x
 
 # import visualtorch
