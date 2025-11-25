@@ -1,13 +1,13 @@
+import logging
 import os
-
-from sympy.physics.units.definitions.unit_definitions import statampere
-
 from utils.boardPlus import BoardPlus
 import chess.pgn
 import numpy as np
 import pickle
 from utils.logger import Logger
 import math
+from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
 
 
 class PGNDataset(Logger):
@@ -68,7 +68,9 @@ class PGNDataset(Logger):
             temp.append(board.get_board_with_piece_index())
 
         return temp
-    def encode_game(self, game: chess.pgn.Game):
+
+    @staticmethod
+    def encode_game(logger, log_lock, game: chess.pgn.Game):
         board = BoardPlus()
         real_board = BoardPlus()  # is used to check if encoded board is correct and for history
 
@@ -94,15 +96,11 @@ class PGNDataset(Logger):
             real_board.push(move)
 
             if not board.changed_perspective and not BoardPlus.compare_boards(board, real_board):
-                self.error(
-                    "Encoded board does not match the real board. Move: " + str(move) + " at game: " + game.headers[
-                        'White'] + " vs " + game.headers['Black'])
+                with log_lock:
+                    logger.error(f"[PID: {os.getpid()}] Encoded board does not match the real board. Move: {str(move)} at game: {game.headers['White']} vs {game.headers['Black']}")
                 break
             board.change_perspective()
         return np.array(moves), np.array(boards), np.array(results)
-
-    file_number = 0
-    number_converted_games = 0
 
     @staticmethod
     def __split_moves(moves: tuple, test_split_ratio: float):
@@ -116,24 +114,31 @@ class PGNDataset(Logger):
         combined = [list(t) for t in zip(*combined)]
         return combined[0], combined[1], combined[2]
 
-    def __save_games_data_to_file(self, moves: tuple, train_output_path: str, test_output_path: str, test_split_ratio: float):
-        game_train_data_path = f"{train_output_path}/{PGNDataset.file_number}.rdg"
-        game_test_data_path = f"{test_output_path}/{PGNDataset.file_number}.rdg"
+    @staticmethod
+    def __save_games_data_to_file(moves: tuple, train_output_path: str, test_output_path: str, test_split_ratio: float, file_counter, shared_game_counter, logger, log_lock):
+        game_train_data_path = f"{train_output_path}/{os.getpid()}_{file_counter}.rdg"
+        game_test_data_path = f"{test_output_path}/{os.getpid()}_{file_counter}.rdg"
 
         data = PGNDataset.shuffle_game_dataset(moves)
         train_data, test_data = PGNDataset.__split_moves(data, test_split_ratio)
 
         with open(game_train_data_path, "wb") as f:
             pickle.dump(train_data, f)
-            self.info(f"Saved train data moves to {game_train_data_path}")
+
+        if Logger.log_level == 'DEBUG':
+            with log_lock:
+                logger.debug(f"[PID: {os.getpid()}] Saved train data moves to {game_train_data_path}")
 
         if len(test_data[0]) > 0:
             with open(game_test_data_path, "wb") as f:
                 pickle.dump(test_data, f)
-                self.info(f"Saved test data moves to {game_test_data_path}")
+            if Logger.log_level == 'DEBUG':
+                with log_lock:
+                    logger.debug(f"[PID: {os.getpid()}] Saved test data moves to {game_train_data_path}")
 
-        PGNDataset.file_number += 1
-        self.info(f"Converted total {PGNDataset.number_converted_games} games")
+        if Logger.log_level == 'DEBUG':
+            with log_lock:
+                logger.debug(f"Total games encoded: {shared_game_counter.value}")
 
     # problem z metodą concatenate, im większa jest główna lista tym dłużej trwa konkatenacja:
     # [INFO][18:36:29]  100
@@ -145,53 +150,108 @@ class PGNDataset(Logger):
     # [INFO][18:39:45] 700
     # [INFO][18:40:47] 800
     # [INFO][18:41:58] 900
-    def encode_directory(self, input_path: str, train_data_output_path: str, test_data_output_path: str, max_games_in_file: int, test_split_ratio: float, number_of_games: int):
-        games_move, games_board, games_win = [], [], []
+    @staticmethod
+    def encode_directory_worker(shared_game_counter, game_counter_lock, logging_lock, dataset_path: str, files_to_process: list, max_games_in_file:int, test_split_ratio:float, number_of_games:int, train_data_output_path:str, test_data_output_path:str):
+        loging = Logger()
+        if Logger.log_level == 'DEBUG':
+            with logging_lock:
+                loging.debug(f"[PID: {os.getpid()}] Started encoding.")
 
+        games_move, games_board, games_win = [], [], []
+        file_counter = 0
+        game_counter = 0
+
+        for file_name in files_to_process:
+            file_name = os.path.join(dataset_path, file_name)
+            pgn = open(file_name)
+
+            while True:
+                game = chess.pgn.read_game(pgn)
+
+                if game is None:
+                    break
+                try:
+                    game_moves, game_boards, game_wins = PGNDataset.encode_game(logging, logging_lock, game)
+                    game_counter += 1
+
+                    if len(game_moves) == 0 or len(game_boards) == 0 or len(game_wins) == 0:
+                        continue
+
+                    games_move.append(game_moves)
+                    games_board.append(game_boards)
+                    games_win.append(game_wins)
+
+                    if shared_game_counter.value >= number_of_games:
+                        break
+
+                    if game_counter % (max_games_in_file + math.floor(max_games_in_file * 0.1)) == 0:
+                        moves, boards, wins = np.concatenate(games_move), np.concatenate(games_board), np.concatenate(games_win)
+                        PGNDataset.__save_games_data_to_file((moves, boards, wins), train_data_output_path,
+                                                             test_data_output_path, test_split_ratio, file_counter, shared_game_counter, loging, logging_lock)
+                        games_move, games_board, games_win = [], [], []
+                        file_counter += 1
+
+                    with game_counter_lock:
+                        shared_game_counter.value += 1
+
+                except Exception as e:
+                    with logging_lock:
+                        loging.error(f"[PID: {os.getpid()}] Error while encoding game from file {file_name}: {e}")
+                    continue
+            pgn.close()
+
+            # break outer loop if limit reached
+            if shared_game_counter.value >= number_of_games:
+                if Logger.log_level == 'DEBUG':
+                    with logging_lock:
+                        loging.debug(f"[PID: {os.getpid()}] Reached limit of {number_of_games} games.")
+                break
+
+        if games_move:
+            moves, boards, wins = np.concatenate(games_move), np.concatenate(games_board), np.concatenate(games_win)
+            PGNDataset.__save_games_data_to_file((moves, boards, wins), train_data_output_path, test_data_output_path,
+                                           test_split_ratio, file_counter, shared_game_counter, loging, logging_lock)
+            file_counter += 1
+
+        if Logger.log_level == 'DEBUG':
+            with logging_lock:
+                logging.debug(f"[PID: {os.getpid()}] Finished encoding.")
+
+    def encode_directory(self, input_path: str, train_data_output_path: str, test_data_output_path: str, max_games_in_file: int, test_split_ratio: float, number_of_games: int, number_of_workers: int = 16):
         if math.floor(test_split_ratio * max_games_in_file) == 0:
             self.warning("Test split ratio is too small, no test data will be created.")
             self.info(f"Encoding directory with {max_games_in_file} games in each train files")
         else:
-            self.info(f"Encoding directory with {max_games_in_file} games in each train files and {math.floor(test_split_ratio * max_games_in_file)} games in test files")
+            self.info(
+                f"Encoding directory with {max_games_in_file} games in each train files and {math.floor(test_split_ratio * max_games_in_file)} games in test files")
 
-        for file_name in os.listdir(input_path):
-            if file_name.endswith(".pgn"):
-                file_name = os.path.join(input_path, file_name)
-                pgn = open(file_name)
-                self.info("Converting file: " + file_name)
+        files = [f for f in os.listdir(input_path) if f.endswith('.pgn')]
+        tasks = np.array_split(files, number_of_workers)
 
-                while True:
-                    game = chess.pgn.read_game(pgn)
-                    if game is None:
-                        break
-                    try:
-                        game_moves, game_boards, game_wins = self.encode_game(game)
+        manager = multiprocessing.Manager()
+        shared_game_counter = manager.Value('i', 0)
+        game_counter_lock = manager.Lock()
+        logging_lock = manager.Lock()
 
-                        if len(game_moves) == 0 or len(game_boards) == 0 or len(game_wins) == 0:
-                            continue
-                        games_move.append(game_moves)
-                        games_board.append(game_boards)
-                        games_win.append(game_wins)
+        with ProcessPoolExecutor(max_workers=number_of_workers) as executor:
+            futures = []
+            for task in tasks:
+                futures.append(
+                    executor.submit(
+                        PGNDataset.encode_directory_worker,
+                        shared_game_counter,
+                        game_counter_lock,
+                        logging_lock,
+                        input_path,
+                        list(task),
+                        max_games_in_file,
+                        test_split_ratio,
+                        number_of_games,
+                        train_data_output_path,
+                        test_data_output_path
+                    )
+                )
+            for future in futures:
+                future.result()
 
-                        PGNDataset.number_converted_games += 1
-
-                        if PGNDataset.number_converted_games >= number_of_games:
-                            self.info(f"Reached the limit of {number_of_games} games. Stopping conversion.")
-                            break
-
-                        if PGNDataset.number_converted_games % (max_games_in_file + math.floor(max_games_in_file*0.1)) == 0:
-                            moves, boards, wins = np.concatenate(games_move), np.concatenate(games_board), np.concatenate(games_win)
-                            self.__save_games_data_to_file((moves, boards, wins), train_data_output_path, test_data_output_path, test_split_ratio)
-                            games_move, games_board, games_win = [], [], []
-                    except Exception as e:
-                        self.error(f"Error processing game: {game.headers}. Error: {e}")
-                        continue
-                pgn.close()
-
-                # break outer loop if limit reached
-                if PGNDataset.number_converted_games >= number_of_games:
-                    break
-
-        if games_move and games_board and games_win:
-            moves, boards, wins = np.concatenate(games_move), np.concatenate(games_board), np.concatenate(games_win)
-            self.__save_games_data_to_file((moves, boards, wins), train_data_output_path, test_data_output_path, test_split_ratio)
+        self.info("Finished encoding directory.")
