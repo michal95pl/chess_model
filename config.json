@@ -3,6 +3,7 @@
   "server_port": 12345,
 
   "max_games_per_train_file": 10,
+  "number_of_games": 100,
   "test_split_ratio": 0.2,
 
   "num_backbone_filters": 50,

@@ -42,7 +42,7 @@ class CommandsHandler(Logger):
         elif len(command) == 1 and command[0] == 'stop-server':
             self.__stop_server()
         elif len(command) == 4 and command[0] == 'convert-games':
-            PGNDataset().encode_directory(command[1], command[2], command[3], int(self.configs.get_config('max_games_per_train_file')), float(self.configs.get_config('test_split_ratio')))
+            PGNDataset().encode_directory(command[1], command[2], command[3], int(self.configs.get_config('max_games_per_train_file')), float(self.configs.get_config('test_split_ratio')), int(self.configs.get_config('number_of_games')))
         elif (len(command) <= 3) and command[0] == 'train-model':
             if len(command) == 1:
                 ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')))

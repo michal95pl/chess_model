@@ -145,7 +145,7 @@ class PGNDataset(Logger):
     # [INFO][18:39:45] 700
     # [INFO][18:40:47] 800
     # [INFO][18:41:58] 900
-    def encode_directory(self, input_path: str, train_data_output_path: str, test_data_output_path: str, max_games_in_file: int, test_split_ratio: float):
+    def encode_directory(self, input_path: str, train_data_output_path: str, test_data_output_path: str, max_games_in_file: int, test_split_ratio: float, number_of_games: int):
         games_move, games_board, games_win = [], [], []
 
         if math.floor(test_split_ratio * max_games_in_file) == 0:
@@ -174,6 +174,11 @@ class PGNDataset(Logger):
                         games_win.append(game_wins)
 
                         PGNDataset.number_converted_games += 1
+
+                        if PGNDataset.number_converted_games >= number_of_games:
+                            self.info(f"Reached the limit of {number_of_games} games. Stopping conversion.")
+                            break
+
                         if PGNDataset.number_converted_games % (max_games_in_file + math.floor(max_games_in_file*0.1)) == 0:
                             moves, boards, wins = np.concatenate(games_move), np.concatenate(games_board), np.concatenate(games_win)
                             self.__save_games_data_to_file((moves, boards, wins), train_data_output_path, test_data_output_path, test_split_ratio)
@@ -182,6 +187,10 @@ class PGNDataset(Logger):
                         self.error(f"Error processing game: {game.headers}. Error: {e}")
                         continue
                 pgn.close()
+
+                # break outer loop if limit reached
+                if PGNDataset.number_converted_games >= number_of_games:
+                    break
 
         if games_move and games_board and games_win:
             moves, boards, wins = np.concatenate(games_move), np.concatenate(games_board), np.concatenate(games_win)
