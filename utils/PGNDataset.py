@@ -1,5 +1,8 @@
 import logging
 import os
+
+from click import progressbar
+
 from utils.boardPlus import BoardPlus
 import chess.pgn
 import numpy as np
@@ -8,6 +11,9 @@ from utils.logger import Logger
 import math
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
+from tqdm import tqdm
+from time import sleep
+import threading
 
 
 class PGNDataset(Logger):
@@ -217,6 +223,19 @@ class PGNDataset(Logger):
             with logging_lock:
                 logging.debug(f"[PID: {os.getpid()}] Finished encoding.")
 
+    @staticmethod
+    def _progres_bar(shared_game_counter, number_of_games):
+        pbar = tqdm(total=number_of_games, desc="Encoding PGN files", colour="green")
+        last_count = 0
+        while True:
+            current_count = shared_game_counter.value
+            pbar.update(current_count - last_count)
+            last_count = current_count
+
+            if current_count >= number_of_games:
+                break
+            sleep(1)
+
     def encode_directory(self, input_path: str, train_data_output_path: str, test_data_output_path: str, max_games_in_file: int, test_split_ratio: float, number_of_games: int, number_of_workers: int = 16):
         if math.floor(test_split_ratio * max_games_in_file) == 0:
             self.warning("Test split ratio is too small, no test data will be created.")
@@ -251,6 +270,12 @@ class PGNDataset(Logger):
                         test_data_output_path
                     )
                 )
+
+            if Logger.log_level != 'DEBUG':
+                bar_thread = threading.Thread(target=PGNDataset._progres_bar, args=(shared_game_counter, number_of_games))
+                bar_thread.start()
+                bar_thread.join()
+
             for future in futures:
                 future.result()
 
