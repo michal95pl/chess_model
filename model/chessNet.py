@@ -24,6 +24,7 @@ class ChessNet(nn.Module):
             nn.BatchNorm2d(num_policy_filters),
             nn.SiLU(inplace=True),
             nn.Flatten(),
+            nn.Dropout(0.2),
             nn.Linear(num_policy_filters * 8 * 8, NUMBER_OF_MOVES),
         )
 
@@ -32,7 +33,10 @@ class ChessNet(nn.Module):
             nn.BatchNorm2d(num_value_filters),
             nn.SiLU(inplace=True),
             nn.Flatten(),
-            nn.Linear(num_value_filters * 8 * 8, 3),
+            nn.Linear(num_value_filters * 8 * 8, 128),
+            nn.SiLU(inplace=True),
+            nn.Dropout(0.1),
+            nn.Linear(128, 3),
         )
 
     def forward(self, x):
@@ -72,7 +76,7 @@ class SeResBlock(nn.Module):
             nn.SiLU(inplace=True), # instead of ReLU
             nn.Conv2d(num_hidden, num_hidden, kernel_size=3, padding=1, bias=False), # bias false because of batchnorm
             nn.BatchNorm2d(num_hidden),
-            SELayer(num_hidden)
+            SELayer(num_hidden, 8)
         )
 
     def forward(self, x):
