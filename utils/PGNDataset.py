@@ -1,8 +1,5 @@
 import logging
 import os
-
-from click import progressbar
-
 from utils.boardPlus import BoardPlus
 import chess.pgn
 import numpy as np
