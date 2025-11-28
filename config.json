@@ -2,21 +2,24 @@
   "server_ip": "localhost",
   "server_port": 12345,
 
-  "max_games_per_train_file": 10,
-  "number_of_games": 100,
+  "max_games_per_train_file": 50,
+  "number_of_games": 1000,
   "test_split_ratio": 0.2,
+  "number_of_converting_processes": 8,
 
-  "num_backbone_filters": 50,
-  "num_policy_filters": 30,
-  "num_value_filters": 3,
-  "num_residual_blocks": 20,
+  "num_backbone_filters": 64,
+  "num_policy_filters": 8,
+  "num_value_filters": 32,
+  "num_residual_blocks": 10,
   "epochs": 200,
-
-  "mcts_simulations": 32000,
-  "mcts_c_param": 1.4,
+  "batch_size": 2048,
+  "number_of_dataset_processes": 4,
+  "buffer_size": 10000,
 
   "multiprocessing_mcts": true,
-  "number_of_processes": 16,
+  "number_of_processes": 10,
+  "mcts_simulations": 4000,
+  "mcts_c_param": 1.4,
 
   "parallel_computations": 8,
 
@@ -25,7 +28,6 @@
   "evaluation_seed": 43,
 
   "gpu_index": 0,
-
   "startCommands": {
 
   }

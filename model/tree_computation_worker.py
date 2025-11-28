@@ -63,26 +63,50 @@ class TreeComputationWorker:
             tree[id_node]['unobserved_samples'] += 1
             id_node = tree[id_node]['parent_id']
 
+    def get_n_boards_state(self, tree, node_id, number_of_boards=3):
+        boards = []
+        perspective = False
+        for _ in range(number_of_boards):
+            if node_id == -1:
+                boards.append(BoardPlus.get_empty_board_with_piece_index())
+            else:
+                fen = bytes(tree[node_id]['fen']).rstrip(b'\x00').decode('utf-8')
+                board_state = BoardPlus(fen=fen)
+                board_state.changed_perspective = tree[node_id]['changed_perspective']
+                if perspective:
+                    board_state.change_perspective()
+                boards.append(board_state.get_board_with_piece_index())
+                node_id = tree[node_id]['parent_id']
+                perspective = not perspective
+        return boards
+
     @torch.no_grad()
     def __make_computation_batch(self, tree, tree_stats_lock, tree_id_lock, last_index):
-        computation_states = []
+        boards = []
+        available_moves_masks = []
+        states = []
         for node_id in self.computation_list:
-            fen = bytes(tree[node_id]['fen']).rstrip(b'\x00').decode('utf-8')
-            board_state = BoardPlus(fen=fen)
-            board_state.changed_perspective = tree[node_id]['changed_perspective']
-            computation_states.append(board_state)
+            boards.append(self.get_n_boards_state(tree, node_id))
+            state = BoardPlus(fen=bytes(tree[node_id]['fen']).rstrip(b'\x00').decode('utf-8'))
+            state.changed_perspective = tree[node_id]['changed_perspective']
+            available_moves_masks.append(state.get_available_moves_mask())
+            states.append(state)
 
-        encoded_states = np.array([state.encode() for state in computation_states], dtype=np.float32)
+        encoded_states = np.eye(13)[boards]
+        encoded_states = encoded_states.transpose(0, 1, 4, 2, 3)
+        encoded_states = encoded_states.reshape(-1, 39, 8, 8)
+
         values, policies = self.model(
             torch.tensor(encoded_states, dtype=torch.float32).to(self.model.device)
         )
 
-        values = values.detach().squeeze(-1).cpu().numpy()
+        wdl = torch.softmax(values, dim=1).cpu().numpy()
         policies = torch.softmax(policies, dim=1).cpu().numpy()
-        policies *= np.array([state.get_available_moves_mask() for state in computation_states])
+        policies *= np.array(available_moves_masks)
 
         for i, node_id in enumerate(self.computation_list):
-            TreeComputationWorker.__backpropagation(tree, node_id, values[i], tree_stats_lock)
+            value = wdl[i][0] - wdl[i][2] - wdl[i][1] # more aggressive, avoid draws
+            TreeComputationWorker.__backpropagation(tree, node_id, value, tree_stats_lock)
 
             if np.sum(policies[i]) == 0:
                 # print("All moves have zero probability!")
@@ -90,7 +114,7 @@ class TreeComputationWorker:
                 continue
 
             policies[i] /= np.sum(policies[i])
-            self.__expansion(tree, computation_states[i], node_id, policies[i], last_index, tree_id_lock)
+            self.__expansion(tree, states[i], node_id, policies[i], last_index, tree_id_lock)
             tree[node_id]['is_locked'] = False
 
     @staticmethod

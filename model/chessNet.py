@@ -6,8 +6,9 @@ HISTORY_PLANES = 3
 
 class ChessNet(nn.Module):
 
-    def __init__(self, num_res_blocks, num_backbone_filters, num_policy_filters, num_value_filters):
+    def __init__(self, device, num_res_blocks, num_backbone_filters, num_policy_filters, num_value_filters):
         super().__init__()
+        self.device = device
 
         self.start_block = nn.Sequential(
             nn.Conv2d(13 * HISTORY_PLANES, num_backbone_filters, kernel_size=3, padding=1, bias=False),

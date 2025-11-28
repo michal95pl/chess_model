@@ -118,9 +118,9 @@ class PGNDataset(Logger):
         return combined[0], combined[1], combined[2]
 
     @staticmethod
-    def __save_games_data_to_file(moves: tuple, train_output_path: str, test_output_path: str, test_split_ratio: float, file_counter, shared_game_counter, logger, log_lock):
-        game_train_data_path = f"{train_output_path}/{os.getpid()}_{file_counter}.rdg"
-        game_test_data_path = f"{test_output_path}/{os.getpid()}_{file_counter}.rdg"
+    def __save_games_data_to_file(moves: tuple, train_output_path: str, test_output_path: str, test_split_ratio: float, file_counter, shared_game_counter, logger, log_lock, moves_counter):
+        game_train_data_path = f"{train_output_path}/{os.getpid()}_{file_counter}_{moves_counter}.rdg"
+        game_test_data_path = f"{test_output_path}/{os.getpid()}_{file_counter}_{moves_counter}.rdg"
 
         data = PGNDataset.shuffle_game_dataset(moves)
         train_data, test_data = PGNDataset.__split_moves(data, test_split_ratio)
@@ -163,6 +163,7 @@ class PGNDataset(Logger):
         games_move, games_board, games_win = [], [], []
         file_counter = 0
         game_counter = 0
+        moves_counter = 0 # file meta info
 
         for file_name in files_to_process:
             file_name = os.path.join(dataset_path, file_name)
@@ -176,6 +177,7 @@ class PGNDataset(Logger):
                 try:
                     game_moves, game_boards, game_wins = PGNDataset.encode_game(logging, logging_lock, game)
                     game_counter += 1
+                    moves_counter += len(game_moves)
 
                     if len(game_moves) == 0 or len(game_boards) == 0 or len(game_wins) == 0:
                         continue
@@ -190,9 +192,10 @@ class PGNDataset(Logger):
                     if game_counter % (max_games_in_file + math.floor(max_games_in_file * 0.1)) == 0:
                         moves, boards, wins = np.concatenate(games_move), np.concatenate(games_board), np.concatenate(games_win)
                         PGNDataset.__save_games_data_to_file((moves, boards, wins), train_data_output_path,
-                                                             test_data_output_path, test_split_ratio, file_counter, shared_game_counter, loging, logging_lock)
+                                                             test_data_output_path, test_split_ratio, file_counter, shared_game_counter, loging, logging_lock, moves_counter)
                         games_move, games_board, games_win = [], [], []
                         file_counter += 1
+                        moves_counter = 0
 
                     with game_counter_lock:
                         shared_game_counter.value += 1
@@ -213,7 +216,7 @@ class PGNDataset(Logger):
         if games_move:
             moves, boards, wins = np.concatenate(games_move), np.concatenate(games_board), np.concatenate(games_win)
             PGNDataset.__save_games_data_to_file((moves, boards, wins), train_data_output_path, test_data_output_path,
-                                           test_split_ratio, file_counter, shared_game_counter, loging, logging_lock)
+                                           test_split_ratio, file_counter, shared_game_counter, loging, logging_lock, moves_counter)
             file_counter += 1
 
         if Logger.log_level == 'DEBUG':

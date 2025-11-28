@@ -23,7 +23,7 @@ class ChessModel(Logger):
         return np.array(a_shuffled), np.array(b_shuffled), np.array(c_shuffled)
 
 
-    def train(self, net, optimizer, epochs, data_path = "train_converted_dataset", output_path="learn_files/"):
+    def train(self, net, optimizer, epochs,  batch_size: int, dataset_workers: int, buffer_size: int,  data_path = "train_converted_dataset", output_path="learn_files/"):
 
         if '/' not in output_path:
             self.warning("Learn output path does not contain folder path. Files will be saved in the main project directory.")
@@ -31,14 +31,13 @@ class ChessModel(Logger):
             self.error("Provided folder in learn output path does not exist.")
             return
 
-        dataset = NetDataset(data_path)
+        dataset = NetDataset(data_path, buffer_size=buffer_size)
         dataloader = DataLoader(
             dataset,
-            batch_size=1,
-            shuffle=True,
-            num_workers=4,
-            collate_fn=NetDataset.identity_collate_fn,
-            pin_memory=True
+            batch_size=batch_size,
+            num_workers=dataset_workers,
+            pin_memory=True,
+            persistent_workers=True,
         )
 
         net.train()
@@ -86,18 +85,16 @@ class ChessModel(Logger):
     Get average loss provided network on data in the given folder path
     """
     @torch.no_grad()
-    def get_model_loss(self, net, data_folder_path: str):
+    def get_model_loss(self, net, data_folder_path: str, batch_size: int, dataset_workers: int, buffer_size:int):
         avg_policy_losses = []
         avg_value_losses = []
         net.eval()
 
-        dataset = NetDataset(data_folder_path)
+        dataset = NetDataset(data_folder_path, buffer_size)
         dataloader = DataLoader(
             dataset,
-            batch_size=1,
-            shuffle=True,
-            num_workers=4,
-            collate_fn=NetDataset.identity_collate_fn,
+            batch_size=batch_size,
+            num_workers=dataset_workers,
             pin_memory=True,
             persistent_workers=True
         )

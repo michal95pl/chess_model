@@ -20,9 +20,9 @@ class ModelEvaluator(Logger):
         self.device = device
         self.net = net
 
-    def save_losses_plot(self, models_folder_path, skip_factor: int = 0, plot_path: str = "losses_plot"):
+    def save_losses_plot(self, models_folder_path, batch_size: int, dataset_workers: int, buffer_size: int, skip_factor: int = 0, plot_path: str = "losses_plot"):
         plot_path += ".png"
-        learn_losses, test_losses = self.__get_losses(self.net, models_folder_path, skip_factor)
+        learn_losses, test_losses = self.__get_losses(self.net, models_folder_path, skip_factor, batch_size, dataset_workers, buffer_size)
         learn_policy_loss, learn_value_loss = zip(*learn_losses)
         test_policy_loss, test_value_loss = zip(*test_losses)
 
@@ -52,7 +52,7 @@ class ModelEvaluator(Logger):
         # todo: improve skipping (e.g., linear skip)
         return [data[i] for i in range(0, len(data), skip_factor+1)]
 
-    def __get_losses(self, net, models_folder_path: str, skip_factor: int):
+    def __get_losses(self, net, models_folder_path: str, skip_factor: int, batch_size: int, dataset_workers: int, buffer_size: int):
         self.info("Loading model files")
         files = {}
         for file_name in os.listdir(models_folder_path):
@@ -76,7 +76,7 @@ class ModelEvaluator(Logger):
                 data = torch.load(os.path.join(models_folder_path, file), weights_only=False)
                 net.load_state_dict(data['model'])
                 learn_losses.append((data['avg_policy_loss'], data['avg_value_loss']))
-                test_losses.append(ChessModel(self.device).get_model_loss(net, self.test_data_folder_path))
+                test_losses.append(ChessModel(self.device).get_model_loss(net, self.test_data_folder_path, batch_size, dataset_workers, buffer_size))
                 pbar.update(1)
         return learn_losses, test_losses
 

@@ -238,7 +238,7 @@ class BoardPlus(chess.Board):
         """
         board_array = self.get_board_with_piece_index()
         one_hot = np.eye(13, dtype=np.uint8)[board_array]
-        return one_hot.flatten()
+        return one_hot
 
 
     def get_available_moves_mask(self):

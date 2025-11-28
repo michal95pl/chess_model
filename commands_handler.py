@@ -21,6 +21,7 @@ class CommandsHandler(Logger):
 
         self.device = torch.device(("cuda:" + str(self.configs.get_config("gpu_index"))) if torch.cuda.is_available() else "cpu")
         self.net = ChessNet(
+            self.device,
             int(self.configs.get_config("num_residual_blocks")),
             int(self.configs.get_config("num_backbone_filters")),
             int(self.configs.get_config("num_policy_filters")),
@@ -42,23 +43,23 @@ class CommandsHandler(Logger):
         elif len(command) == 1 and command[0] == 'stop-server':
             self.__stop_server()
         elif len(command) == 4 and command[0] == 'convert-games':
-            PGNDataset().encode_directory(command[1], command[2], command[3], int(self.configs.get_config('max_games_per_train_file')), float(self.configs.get_config('test_split_ratio')), int(self.configs.get_config('number_of_games')))
+            PGNDataset().encode_directory(command[1], command[2], command[3], int(self.configs.get_config('max_games_per_train_file')), float(self.configs.get_config('test_split_ratio')), int(self.configs.get_config('number_of_games')), int(self.configs.get_config('number_of_converting_processes')))
         elif (len(command) <= 3) and command[0] == 'train-model':
             if len(command) == 1:
-                ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')))
+                ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')), int(self.configs.get_config('batch_size')), int(self.configs.get_config('number_of_dataset_processes')), int(self.configs.get_config('buffer_size')))
             elif len(command) == 2:
-                ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')), command[1])
+                ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')), int(self.configs.get_config('batch_size')), int(self.configs.get_config('number_of_dataset_processes')), int(self.configs.get_config('buffer_size')), command[1])
             elif len(command) == 3:
-                ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')), command[1], command[2])
+                ChessModel(self.device).train(self.net, self.optimizer, int(self.configs.get_config('epochs')), int(self.configs.get_config('batch_size')), int(self.configs.get_config('number_of_dataset_processes')), int(self.configs.get_config('buffer_size')), command[1], command[2])
         elif len(command) == 2 and command[0] == "load-model":
             self.__load_model(command)
         elif (len(command) == 3 or len(command) == 2) and command[0] == "compare-model-to-stockfish":
             self.__compare_model_to_stockfish(command)
         elif (len(command) == 3 or len(command) == 4) and command[0] == "show-loss":
             if len(command) == 3:
-                ModelEvaluator(command[1], self.device, self.net).save_losses_plot(command[2])
+                ModelEvaluator(command[1], self.device, self.net).save_losses_plot(command[2], int(self.configs.get_config('batch_size')), int(self.configs.get_config('number_of_dataset_processes')), int(self.configs.get_config('buffer_size')))
             else:
-                ModelEvaluator(command[1], self.device, self.net).save_losses_plot(command[2], int(command[3]))
+                ModelEvaluator(command[1], self.device, self.net).save_losses_plot(command[2], int(self.configs.get_config('batch_size')), int(self.configs.get_config('number_of_dataset_processes')), int(self.configs.get_config('buffer_size')), int(command[3]))
             self.is_model_loaded = False
             self.loaded_model_path = "*"
         elif len(command) == 2 and command[0] == "confusion-matrix":
@@ -143,7 +144,7 @@ class CommandsHandler(Logger):
 
     def __load_model(self, command: list):
         try:
-            checkpoint = torch.load(command[1], weights_only=False)
+            checkpoint = torch.load(command[1], weights_only=False, map_location=self.device)
             self.net.load_state_dict(checkpoint["model"])
             self.optimizer.load_state_dict(checkpoint["optimizer"])
             self.info("model loaded successfully")
