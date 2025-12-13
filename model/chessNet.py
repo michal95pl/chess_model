@@ -36,7 +36,7 @@ class ChessNet(nn.Module):
             nn.Flatten(),
             nn.Linear(num_value_filters * 8 * 8, 128),
             nn.SiLU(inplace=True),
-            nn.Dropout(0.1),
+            nn.Dropout(0.3),
             nn.Linear(128, 3),
         )
 

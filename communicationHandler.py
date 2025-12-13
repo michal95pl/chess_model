@@ -24,9 +24,14 @@ class CommunicationHandler(Thread, Logger):
                 message = self.communication.get_first_message()
                 conn, command = message
                 if command['command'] == 'get_move':
-                    board = BoardPlus(command['board'])
+                    fen_boards = command['boards']
+                    board = BoardPlus(fen_boards[0])
+                    state_history = []
+                    for i in range(1, len(fen_boards)):
+                        state_history.append(BoardPlus(fen=fen_boards[i]))
+
                     save_time = time.time()
-                    prob = self.mcts.search(board)
+                    prob = self.mcts.search(board, state_history)
                     move_id = np.argmax(prob)
                     move_mcts = board.decode_move(move_id)
                     move_mcts = board.change_move_perspective(move_mcts)

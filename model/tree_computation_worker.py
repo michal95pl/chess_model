@@ -13,7 +13,7 @@ class TreeComputationWorker:
         self.c_param = c_param
         self.computation_list = []
 
-    def compute_tree(self, num_simulations: int, tree_shm_name, tree_shape, tree_dtype, last_index_shm_name, tree_stats_lock, tree_id_lock):
+    def compute_tree(self, num_simulations: int, tree_shm_name, tree_shape, tree_dtype, last_index_shm_name, tree_stats_lock, tree_id_lock, fen_history: list):
 
         shm = shared_memory.SharedMemory(name=tree_shm_name)
         tree = np.ndarray(tree_shape, dtype=tree_dtype, buffer=shm.buf)
@@ -21,7 +21,7 @@ class TreeComputationWorker:
         shm_last_index = shared_memory.SharedMemory(name=last_index_shm_name)
         last_index = np.ndarray((1,), dtype=np.int32, buffer=shm_last_index.buf)
 
-        self.computation_list = [] # it's not necessary, but put here to be sure it's empty
+        self.computation_list = [] # it's not necessary, but to be sure it's empty before starting computation
 
         sim_num = 0
         while sim_num < num_simulations:
@@ -34,7 +34,7 @@ class TreeComputationWorker:
             if best_leaf_id is None:
                 # process any pending computations to unlock dead nodes
                 if len(self.computation_list) > 0:
-                    self.__make_computation_batch(tree, tree_stats_lock, tree_id_lock, last_index)
+                    self.__make_computation_batch(tree, tree_stats_lock, tree_id_lock, last_index, fen_history)
                     self.computation_list.clear()
                 else:
                     # wait for other processes to unlock nodes
@@ -51,24 +51,29 @@ class TreeComputationWorker:
             self.computation_list.append(best_leaf_id)
 
             if len(self.computation_list) == 2 or sim_num == num_simulations - 1:
-                self.__make_computation_batch(tree, tree_stats_lock, tree_id_lock, last_index)
+                self.__make_computation_batch(tree, tree_stats_lock, tree_id_lock, last_index, fen_history)
                 self.computation_list.clear()
             sim_num += 1
-        # print(os.getpid(), "Completed simulations:", sim_num)
 
     @staticmethod
     def backpropagate_stats(tree, id_node):
         while id_node != -1:
-            # tree[id_node]['total_visit'] += 1 # todo: sprawdzić
             tree[id_node]['unobserved_samples'] += 1
             id_node = tree[id_node]['parent_id']
 
-    def get_n_boards_state(self, tree, node_id, number_of_boards=3):
+    def get_n_boards_state(self, tree, node_id, fen_history, number_of_boards=3):
         boards = []
         perspective = False
+        fen_history_index = 0
         for _ in range(number_of_boards):
+            # above the root
             if node_id == -1:
-                boards.append(BoardPlus.get_empty_board_with_piece_index())
+                if fen_history_index < len(fen_history):
+                    fen = bytes(fen_history[fen_history_index]).rstrip(b'\x00').decode('utf-8')
+                    boards.append(BoardPlus(fen=fen).get_board_with_piece_index())
+                    fen_history_index += 1
+                else:
+                    boards.append(BoardPlus.get_empty_board_with_piece_index())
             else:
                 fen = bytes(tree[node_id]['fen']).rstrip(b'\x00').decode('utf-8')
                 board_state = BoardPlus(fen=fen)
@@ -81,12 +86,12 @@ class TreeComputationWorker:
         return boards
 
     @torch.no_grad()
-    def __make_computation_batch(self, tree, tree_stats_lock, tree_id_lock, last_index):
+    def __make_computation_batch(self, tree, tree_stats_lock, tree_id_lock, last_index, fen_history):
         boards = []
         available_moves_masks = []
         states = []
         for node_id in self.computation_list:
-            boards.append(self.get_n_boards_state(tree, node_id))
+            boards.append(self.get_n_boards_state(tree, node_id, fen_history))
             state = BoardPlus(fen=bytes(tree[node_id]['fen']).rstrip(b'\x00').decode('utf-8'))
             state.changed_perspective = tree[node_id]['changed_perspective']
             available_moves_masks.append(state.get_available_moves_mask())
@@ -105,11 +110,10 @@ class TreeComputationWorker:
         policies *= np.array(available_moves_masks)
 
         for i, node_id in enumerate(self.computation_list):
-            value = wdl[i][0] - wdl[i][2] - wdl[i][1] # more aggressive, avoid draws
+            value = wdl[i][0] - wdl[i][2]  # win prob - loss prob
             TreeComputationWorker.__backpropagation(tree, node_id, value, tree_stats_lock)
 
             if np.sum(policies[i]) == 0:
-                # print("All moves have zero probability!")
                 tree[node_id]['is_locked'] = False
                 continue
 
@@ -132,15 +136,15 @@ class TreeComputationWorker:
         parent_id = tree[id_node]['parent_id']
 
         if tree[id_node]['total_visit'] == 0:
-            # FPU
+            # FPU. We try to find worse case than ours for opponent
             exploitation = tree[parent_id]['total_reward'] / tree[parent_id]['total_visit']
+            exploitation = (exploitation + 1) / 2 # scale to [0, 1]
         else:
             exploitation = tree[id_node]['total_reward'] / tree[id_node]['total_visit']
-            exploitation = 1 - (exploitation + 1) / 2
+            exploitation = 1 - (exploitation + 1) / 2 # reverse and scale to [0, 1]. Reverse to weaken opponent's moves
 
         exploration = c_param * (math.sqrt(tree[parent_id]['total_visit'] + tree[id_node]['unobserved_samples']) / (
                 1 + tree[id_node]['total_visit'] + tree[id_node]['unobserved_samples'])) * tree[id_node]['prior']
-
         return exploitation + exploration
 
     # return None when root is locked or all children are locked
@@ -148,14 +152,11 @@ class TreeComputationWorker:
         node_id = 0
         # root node is locked
         if tree[node_id]['is_locked']:
-            # print("Root node is locked!")
             return None
 
         # node_id in none when all children are locked
         while node_id is not None and not TreeComputationWorker.is_leaf_node(tree, node_id):
             node_id = self.get_best_child(tree, node_id)
-            # if node_id is None:
-                # print("All children are locked during selection!")
         return node_id
 
     @staticmethod
@@ -164,10 +165,6 @@ class TreeComputationWorker:
         policy_mask = policy > 0
         move_ids = np.arange(len(policy))[policy_mask]
         policy_values = policy[policy_mask]
-
-        # if tree[node_id]['children_count'] > 0:
-            # print(tree[node_id])
-            # print(TreeComputationWorker.is_leaf_node(tree, node_id))
 
         for i in range(len(move_ids)):
             move = board_state.decode_move(move_ids[i])
@@ -198,9 +195,6 @@ class TreeComputationWorker:
             if score > best_score:
                 best_score = score
                 best_child_id = child_id
-        # if best_child_id is None:
-            # print("All children are locked!")
-            # print(tree[node_id])
         return best_child_id
 
     @staticmethod

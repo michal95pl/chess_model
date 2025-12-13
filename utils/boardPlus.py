@@ -41,7 +41,7 @@ class BoardPlus(chess.Board):
         if self.is_queenside_castling(move):
             return 77
 
-        elif piece.piece_type == chess.KNIGHT:
+        if piece.piece_type == chess.KNIGHT:
             knight_moves = {
                 6: 0,
                 10: 1,
@@ -56,7 +56,7 @@ class BoardPlus(chess.Board):
             if move_diff in knight_moves:
                 return knight_moves[move_diff]
 
-        elif piece.piece_type == chess.QUEEN or piece.piece_type == chess.ROOK or piece.piece_type == chess.BISHOP or chess.KING or piece.piece_type == chess.PAWN:
+        if piece.piece_type == chess.QUEEN or piece.piece_type == chess.ROOK or piece.piece_type == chess.BISHOP or piece.piece_type == chess.KING or piece.piece_type == chess.PAWN:
             # right
             if (move.to_square % 8) > (move.from_square % 8) and (move.to_square // 8) == (move.from_square // 8):
                 move_diff = move.to_square - move.from_square # max 7

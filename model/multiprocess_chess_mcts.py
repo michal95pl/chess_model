@@ -100,9 +100,18 @@ class ParallelAMCTS(Logger):
         self.process_executor.shutdown(wait=True)
         self.debug("Shut down MCTS")
 
-    def search(self, state: BoardPlus):
+    # history_states can contain up to last 2 states. It may improve context understanding, but it's optional.
+    # this method can be used only for black perspective!
+    def search(self, state: BoardPlus, history_states: list):
         state = state.__copy__()
-        state.change_perspective() # change to black perspective
+        state.change_perspective() # change from black to white (black perspective)
+
+        # fen history for black perspective
+        fen_history = []
+        for s in history_states:
+            s = s.__copy__()
+            s.change_perspective()
+            fen_history.append(s.fen().encode('utf-8'))
 
         # add root node
         self.last_index[0] = 0
@@ -118,13 +127,12 @@ class ParallelAMCTS(Logger):
                 self.tree_shm.name,
                 self.tree.shape,
                 self.tree.dtype,
-                self.last_index_shm.name
+                self.last_index_shm.name,
+                fen_history
             ))
 
         for future in futures:
             future.result()
-
-        # print(self.tree[0])
 
         probabilities = np.zeros(state.action_size)
         for child_id in self.tree[0]['children'][:self.tree[0]['children_count']]:
@@ -133,14 +141,14 @@ class ParallelAMCTS(Logger):
         return probabilities
 
     @staticmethod
-    def run_process(sim_count, tree_name, tree_shape, tree_dtype, last_index_name):
+    def run_process(sim_count, tree_name, tree_shape, tree_dtype, last_index_name, fen_history):
         global selection_lock_g
         global backpropagation_lock_g
         global expansion_lock_g
         global computation_worker_g
-        # print("Process started simulations.")
+
         computation_worker_g.compute_tree(sim_count, tree_name, tree_shape, tree_dtype, last_index_name,
-                                          selection_lock_g, backpropagation_lock_g)
+                                          selection_lock_g, backpropagation_lock_g, fen_history)
 
     @staticmethod
     def warmup_process():

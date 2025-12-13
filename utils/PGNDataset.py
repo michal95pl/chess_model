@@ -59,16 +59,17 @@ class PGNDataset(Logger):
     @staticmethod
     def get_boards_with_piece_index_from_board_history(board_history: list, changed_perspective, number_of_boards: int = 2):
         temp = []
-        number_empty_boards = number_of_boards - len(board_history) if len(board_history) < number_of_boards else 0
+        start_indx = len(board_history) - 1
+        stop_indx = start_indx - min(len(board_history), number_of_boards)
 
-        for _ in range(number_empty_boards):
-            temp.append(BoardPlus.get_empty_board_with_piece_index())
-
-        for b in board_history[-(number_of_boards - number_empty_boards):]:
-            board = b.__copy__()
+        for i in range(start_indx, stop_indx, -1):
+            board = board_history[i].__copy__()
             if changed_perspective:
                 board.change_perspective()
             temp.append(board.get_board_with_piece_index())
+
+        for _ in range(number_of_boards - len(temp)):
+            temp.append(BoardPlus.get_empty_board_with_piece_index())
 
         return temp
 
@@ -88,8 +89,8 @@ class PGNDataset(Logger):
                 changed_move = BoardPlus.change_move_perspective(move)
 
             moves.append(board.get_move_index(changed_move))
-            temp = PGNDataset.get_boards_with_piece_index_from_board_history(board_history, board.changed_perspective)
-            temp.append(board.get_board_with_piece_index())
+            temp = [board.get_board_with_piece_index()]
+            temp.extend(PGNDataset.get_boards_with_piece_index_from_board_history(board_history, board.changed_perspective))
             boards.append(temp)
             results.append(PGNDataset.get_game_result(game, board.changed_perspective))
 
