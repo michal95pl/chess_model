@@ -65,11 +65,15 @@ class CommandsHandler(Logger):
         elif len(command) == 2 and command[0] == "confusion-matrix":
             if not self.is_model_loaded:
                 self.warning("Using untrained model. It's recommended to load a trained model before generating confusion matrix.")
-            ModelEvaluator(command[1], self.device, self.net).save_confusion_matrix(self.loaded_model_path)
+            ModelEvaluator(command[1], self.device, self.net).save_confusion_matrix(self.loaded_model_path, int(self.configs.get_config('buffer_size')), int(self.configs.get_config('batch_size')), int(self.configs.get_config('number_of_dataset_processes')))
         elif (len(command) == 3 or len(command) == 4) and command[0] == "compare-mcts":
             if not self.is_model_loaded:
                 self.warning("Using untrained model. It's recommended to load a trained model before comparing MCTS.")
             self.__compare_mcts(command)
+        elif len(command) == 2 and command[0] == "top-k-accuracy":
+            if not self.is_model_loaded:
+                self.warning("Using untrained model. It's recommended to load a trained model before calculating top-k accuracy.")
+            ModelEvaluator(command[1], self.device, self.net).save_top_5_plot(self.loaded_model_path, int(self.configs.get_config('buffer_size')), int(self.configs.get_config('batch_size')), int(self.configs.get_config('number_of_dataset_processes')))
         else:
             print("Unknown command. Type 'help' to see available commands.")
 
@@ -113,6 +117,7 @@ class CommandsHandler(Logger):
         print(" - show-loss <test_data_directory> <models_directory> [skip_factor] - Show loss plot for models in models_directory on test data")
         print(" - confusion-matrix <test_data_directory> - Save confusion matrix for value network on test data")
         print(" - compare-mcts <num_simulations_opponent> <num_simulations_opponent> [path] - Compare the current loaded model with another MCTS. Saves comparison plot and game in path")
+        print(" - top-k-accuracy <test_data_directory> - Show top-k accuracy for policy network on test data")
 
     def __print_status(self):
         print("Computation device: " + str(self.device))

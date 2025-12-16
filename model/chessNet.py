@@ -86,24 +86,3 @@ class SeResBlock(nn.Module):
         x += residual
         x = F.silu(x, inplace=True) # instead of ReLU
         return x
-
-# import visualtorch
-import matplotlib.pyplot as plt
-# device = torch.device("cpu")
-# model = ChessNet(80, 3)
-
-# img = visualtorch.graph_view(
-#     model,
-#     input_shape=(1, 13, 8, 8),
-#     to_file="chessNet_graph.png"
-# )
-
-# img = visualtorch.layered_view(
-#     model,
-#     input_shape=(1, 13, 8, 8)
-# )
-
-# plt.axis('off')
-# plt
-# plt.imshow(img)
-# plt.show()

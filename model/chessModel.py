@@ -2,7 +2,7 @@ from tqdm import tqdm
 import numpy as np
 import random
 from utils.logger import Logger
-import pickle
+from torchmetrics.classification import MulticlassAccuracy
 import torch
 import os
 import datetime
@@ -114,46 +114,70 @@ class ChessModel(Logger):
         return np.mean(avg_policy_losses), np.mean(avg_value_losses)
 
     @torch.no_grad()
-    def get_value_network_confusion_matrix(self, net, test_data_path):
+    def get_value_network_confusion_matrix(self, net, test_data_path, buffer_size, batch_size, dataset_workers):
         y_pred_value = []
         y_true_value = []
 
-        y_pred_policy = []
-        y_true_policy = []
+        dataset = NetDataset(test_data_path, buffer_size=buffer_size)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=batch_size,
+            num_workers=dataset_workers,
+            pin_memory=True,
+            persistent_workers=True,
+        )
 
-        with tqdm(total=len(os.listdir(test_data_path)), desc="Calculating confusion matrix", colour="blue") as pbar:
-            for file_name in os.listdir(test_data_path):
-                file_data = pickle.load(open(os.path.join(test_data_path, file_name), "rb"))
-                moves, boards, wins = file_data
-                moves = torch.tensor(moves, device=self.device).float()
-                boards = torch.tensor(boards, device=self.device).float()
-                wins = torch.tensor(wins, device=self.device).float()
+        with tqdm(total=len(dataloader), colour="green") as pbar:
+            for batch in dataloader:
+                moves, boards, wins = batch
+                boards = boards.to(self.device)
 
                 value, policy = net(boards)
-                value = value.squeeze(1)
-                policy = torch.softmax(policy, dim=1).squeeze(0)
+                value = torch.softmax(value, dim=1).squeeze(0)
+                value = value.argmax(dim=1).cpu().numpy()
 
-                y_pred_value.append(value.cpu().numpy())
-                y_true_value.append(wins.cpu().numpy())
-
-                y_pred_policy.append(policy.cpu().numpy())
-                y_true_policy.append(moves.cpu().numpy())
+                y_pred_value.append(value)
+                y_true_value.append(wins.argmax(dim=1))
                 pbar.update(1)
 
-        y_pred_value = np.concatenate(y_pred_value)
-        y_true_value = np.concatenate(y_true_value)
-        y_pred_policy = np.concatenate(y_pred_policy)
-        y_true_policy = np.concatenate(y_true_policy)
+            y_pred_value = np.concatenate(y_pred_value)
+            y_true_value = np.concatenate(y_true_value)
 
-        y_pred_value = np.where(y_pred_value >= 0, 1, 0)
-        y_true_value = np.where(y_true_value >= 0, 1, 0)
+        return y_pred_value, y_true_value
 
-        y_pred_policy = np.argmax(y_pred_policy, axis=1)
-        y_true_policy = np.argmax(y_true_policy, axis=1)
+    @torch.no_grad()
+    def get_policy_net_top_k(self, net, test_data_path, buffer_size, batch_size, dataset_workers):
 
-        return (
-            y_pred_value,
-            y_true_value,
-            y_pred_policy,
-            y_true_policy
-            )
+        dataset = NetDataset(test_data_path, buffer_size=buffer_size)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=batch_size,
+            num_workers=dataset_workers,
+            pin_memory=True,
+            persistent_workers=True,
+        )
+
+        rank_counts = torch.zeros(10, device=self.device)
+        total_samples = 0
+
+        with tqdm(total=len(dataloader), colour="green") as pbar:
+            for batch in dataloader:
+                moves, boards, wins = batch
+                boards, moves = boards.to(self.device), moves.to(self.device)
+
+                value, policy = net(boards)
+                policy = torch.softmax(policy, dim=1)
+
+                _ , top5 = policy.topk(10, dim=1)
+                moves = moves.view(-1, 1)
+                hits = (top5 == moves)
+                rank_counts += hits.sum(dim=0).float()
+                total_samples += moves.size(0)
+
+                pbar.update(1)
+
+        print(total_samples)
+        rank_counts = rank_counts.cpu().numpy() / total_samples
+        rank_counts = np.cumsum(rank_counts)
+
+        return rank_counts

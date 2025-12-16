@@ -81,14 +81,14 @@ class ModelEvaluator(Logger):
         return learn_losses, test_losses
 
 
-    def save_confusion_matrix(self, model_name: str, plot_path: str = "confusion_matrix"):
+    def save_confusion_matrix(self, model_name: str, buffer_size, batch_size, dataset_workers, plot_path: str = "confusion_matrix"):
         plot_path += ".png"
-        y_pred_value, y_true_value, y_pred_policy, y_true_policy = ChessModel(self.device).get_value_network_confusion_matrix(self.net, self.test_data_folder_path)
+        y_pred_value, y_true_value= ChessModel(self.device).get_value_network_confusion_matrix(self.net, self.test_data_folder_path, buffer_size, batch_size, dataset_workers)
 
         cm_value = confusion_matrix(y_true_value, y_pred_value)
-        precision_value = precision_score(y_true_value, y_pred_value, zero_division=0)
-        recall_value = recall_score(y_true_value, y_pred_value, zero_division=0)
-        f1_value = f1_score(y_true_value, y_pred_value, zero_division=0)
+        precision_value = precision_score(y_true_value, y_pred_value, zero_division=0, average='macro')
+        recall_value = recall_score(y_true_value, y_pred_value, zero_division=0, average='macro')
+        f1_value = f1_score(y_true_value, y_pred_value, zero_division=0, average='macro')
         metrics_text = f'Precision: {precision_value:.2f}\nRecall: {recall_value:.2f}\nF1: {f1_value:.2f}'
 
 
@@ -96,9 +96,11 @@ class ModelEvaluator(Logger):
         plt.title('Confusion Matrix for Value Network\n' +
                     f'Model: {model_name}\n' +
                     metrics_text)
-        tick_marks = range(2)
-        plt.xticks(tick_marks, ['-1', '1'])
-        plt.yticks(tick_marks, ['-1', '1'])
+
+        ticks_labels = ['W', 'D', 'L']
+        ticks = range(cm_value.shape[1])
+        plt.xticks(ticks, ticks_labels)
+        plt.yticks(ticks, ticks_labels)
         plt.xlabel('Predicted Label')
         plt.ylabel('True Label')
         plt.tight_layout()
@@ -108,3 +110,8 @@ class ModelEvaluator(Logger):
 
         plt.savefig(plot_path)
         self.info(f"Saved confusion matrix to {plot_path}")
+
+    def save_top_5_plot(self, model_name: str, buffer_size, batch_size, dataset_workers, plot_path: str = "topk_matrix"):
+        plot_path += ".png"
+        rank_counts = ChessModel(self.device).get_policy_net_top_k(self.net, self.test_data_folder_path, buffer_size, batch_size, dataset_workers)
+        print(rank_counts)
