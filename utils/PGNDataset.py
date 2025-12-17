@@ -76,7 +76,7 @@ class PGNDataset(Logger):
     @staticmethod
     def encode_game(logger, log_lock, game: chess.pgn.Game):
         board = BoardPlus()
-        real_board = BoardPlus()  # is used to check if encoded board is correct and for history
+        real_board = BoardPlus()
 
         moves = []
         boards = []

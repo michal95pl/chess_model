@@ -40,8 +40,8 @@ class CommandsHandler(Logger):
             self.__print_status()
         elif len(command) == 1 and command[0] == 'start-server':
             self.__start_server()
-        elif len(command) == 1 and command[0] == 'stop-server':
-            self.__stop_server()
+        # elif len(command) == 1 and command[0] == 'stop-server':
+        #     self.__stop_server()
         elif len(command) == 4 and command[0] == 'convert-games':
             PGNDataset().encode_directory(command[1], command[2], command[3], int(self.configs.get_config('max_games_per_train_file')), float(self.configs.get_config('test_split_ratio')), int(self.configs.get_config('number_of_games')), int(self.configs.get_config('number_of_converting_processes')))
         elif (len(command) <= 3) and command[0] == 'train-model':
@@ -105,7 +105,6 @@ class CommandsHandler(Logger):
         print(" General:")
         print(" - print-status")
         print(" - start-server - Run the chess model server")
-        print(" - stop-server - Stop the chess model server")
         print()
         print(" Model and dataset management:")
         print(" - convert-games <input_directory> <output_train_data_directory> <output_test_data_directory> - Convert PGN files to encoded format .rdg")

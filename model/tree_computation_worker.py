@@ -70,7 +70,10 @@ class TreeComputationWorker:
             if node_id == -1:
                 if fen_history_index < len(fen_history):
                     fen = bytes(fen_history[fen_history_index]).rstrip(b'\x00').decode('utf-8')
-                    boards.append(BoardPlus(fen=fen).get_board_with_piece_index())
+                    state = BoardPlus(fen=fen)
+                    if perspective:
+                        state.change_perspective()
+                    boards.append(state.get_board_with_piece_index())
                     fen_history_index += 1
                 else:
                     boards.append(BoardPlus.get_empty_board_with_piece_index())
@@ -82,7 +85,7 @@ class TreeComputationWorker:
                     board_state.change_perspective()
                 boards.append(board_state.get_board_with_piece_index())
                 node_id = tree[node_id]['parent_id']
-                perspective = not perspective
+            perspective = not perspective
         return boards
 
     @torch.no_grad()
