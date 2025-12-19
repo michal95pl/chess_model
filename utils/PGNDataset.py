@@ -108,7 +108,7 @@ class PGNDataset(Logger):
 
     @staticmethod
     def __split_moves(moves: tuple, test_split_ratio: float):
-        split_index = int(len(moves) * (1 - test_split_ratio))
+        split_index = int(len(moves[0]) * (1 - test_split_ratio))
         return (moves[0][split_index:], moves[1][split_index:], moves[2][split_index:]), (moves[0][:split_index], moves[1][:split_index], moves[2][:split_index])
 
     @staticmethod
@@ -127,9 +127,12 @@ class PGNDataset(Logger):
         train_boards = np.concatenate(train_data[1])
         train_value = np.concatenate(train_data[2])
 
-        test_moves = np.concatenate(test_data[0])
-        test_boards = np.concatenate(test_data[1])
-        test_value = np.concatenate(test_data[2])
+        if len(test_data[0]) > 0:
+            test_moves = np.concatenate(test_data[0])
+            test_boards = np.concatenate(test_data[1])
+            test_value = np.concatenate(test_data[2])
+        else:
+            test_moves, test_boards, test_value = [], [], []
 
         train_data = (train_moves, train_boards, train_value)
         test_data = (test_moves, test_boards, test_value)
@@ -150,6 +153,10 @@ class PGNDataset(Logger):
             if Logger.log_level == 'DEBUG':
                 with log_lock:
                     logger.debug(f"[PID: {os.getpid()}] Saved test data moves to {game_test_data_path}")
+        else:
+            if Logger.log_level == 'DEBUG':
+                with log_lock:
+                    logger.debug(f"[PID: {os.getpid()}] No test data to save for file {file_counter}.")
 
         if Logger.log_level == 'DEBUG':
             with log_lock:
