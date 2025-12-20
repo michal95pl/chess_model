@@ -197,18 +197,8 @@ class BoardPlus(chess.Board):
         return chess.Move(flipped_from_square, flipped_to_square, promotion=move.promotion, drop=move.drop)
 
     piece_mapper = {
-        'p': 0,
-        'n': 1,
-        'b': 2,
-        'r': 3,
-        'q': 4,
-        'k': 5,
-        'P': 6,
-        'N': 7,
-        'B': 8,
-        'R': 9,
-        'Q': 10,
-        'K': 11,
+        'P': 0, 'N': 1, 'B': 2, 'R': 3, 'Q': 4, 'K': 5,
+        'p': 6, 'n': 7, 'b': 8, 'r': 9, 'q': 10, 'k': 11,
         ' ': 12
     }
 
