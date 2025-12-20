@@ -121,7 +121,7 @@ class PGNDataset(Logger):
     @staticmethod
     def __save_games_data_to_file(games: tuple, train_output_path: str, test_output_path: str, test_split_ratio: float, file_counter, shared_game_counter, logger, log_lock):
         shuffle_games = PGNDataset.shuffle_game_dataset(games)
-        train_data, test_data = PGNDataset.__split_moves(shuffle_games, test_split_ratio)
+        test_data, train_data = PGNDataset.__split_moves(shuffle_games, test_split_ratio)
 
         train_moves = np.concatenate(train_data[0])
         train_boards = np.concatenate(train_data[1])
