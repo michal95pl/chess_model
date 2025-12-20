@@ -96,7 +96,7 @@ class PGNDataset(Logger):
 
             board_history.append(real_board.__copy__())
 
-            board.better_push(changed_move)
+            board.push(changed_move)
             real_board.push(move)
 
             if not board.changed_perspective and not BoardPlus.compare_boards(board, real_board):
