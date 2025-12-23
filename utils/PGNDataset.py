@@ -123,16 +123,19 @@ class PGNDataset(Logger):
         shuffle_games = PGNDataset.shuffle_game_dataset(games)
         test_data, train_data = PGNDataset.__split_moves(shuffle_games, test_split_ratio)
 
-        train_moves = np.concatenate(train_data[0])
-        train_boards = np.concatenate(train_data[1])
-        train_value = np.concatenate(train_data[2])
+        if len(train_data[0]) > 0:
+            train_moves = np.concatenate(train_data[0])
+            train_boards = np.concatenate(train_data[1])
+            train_value = np.concatenate(train_data[2])
+        else:
+            train_moves, train_boards, train_value = np.array([]), np.array([]), np.array([])
 
         if len(test_data[0]) > 0:
             test_moves = np.concatenate(test_data[0])
             test_boards = np.concatenate(test_data[1])
             test_value = np.concatenate(test_data[2])
         else:
-            test_moves, test_boards, test_value = [], [], []
+            test_moves, test_boards, test_value = np.array([]), np.array([]), np.array([])
 
         train_data = (train_moves, train_boards, train_value)
         test_data = (test_moves, test_boards, test_value)
@@ -140,8 +143,9 @@ class PGNDataset(Logger):
         game_train_data_path = f"{train_output_path}/{os.getpid()}_{file_counter}_{len(train_moves)}.rdg"
         game_test_data_path = f"{test_output_path}/{os.getpid()}_{file_counter}_{len(test_moves)}.rdg"
 
-        with open(game_train_data_path, "wb") as f:
-            pickle.dump(train_data, f)
+        if len(train_data[0]) > 0:
+            with open(game_train_data_path, "wb") as f:
+                pickle.dump(train_data, f)
 
         if Logger.log_level == 'DEBUG':
             with log_lock:

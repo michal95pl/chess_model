@@ -3,7 +3,7 @@ import numpy as np
 import chess
 import chess.engine
 import chess.pgn
-from model.chess_mctsnn import AMCTS
+from model.multiprocess_chess_mcts import ParallelAMCTS
 from utils.boardPlus import BoardPlus
 import time
 from utils.logger import Logger
@@ -40,7 +40,7 @@ class StockfishModelEvaluator(Logger):
             games_score.append(self.__evaluate_game(path + f"/game{i+1}.pgn"))
         self.__create_stockfish_plot(random_model_scores, games_score, path + "/evaluation_plot.png")
 
-    def compare_to(self, opponent_mcts: AMCTS, save_path: str= "results"):
+    def compare_to(self, opponent_mcts, save_path: str= "results"):
         if not os.path.exists(save_path):
             self.error("Provided folder path does not exist.")
             return
@@ -74,6 +74,17 @@ class StockfishModelEvaluator(Logger):
             pgn_file.write(str(game))
         self.info("Saved comparison game to " + save_path + "/comparison_game.pgn")
 
+    @staticmethod
+    def get_last_states(history, n_max=2):
+        states = []
+        i = len(history) - 1
+        for _ in range(n_max):
+            if i < 0:
+                return states
+            states.append(history[i])
+            i -= 1
+        return states
+
     def __evaluate_game(self, game_path):
         board = BoardPlus()
         game = chess.pgn.Game()
@@ -82,6 +93,7 @@ class StockfishModelEvaluator(Logger):
         save_time = time.time()
         scores = []
         computation_times = []
+        state_history = []
         while not board.is_game_over():
             if board.turn == chess.WHITE:
                 result = self.engine.analyse(board, chess.engine.Limit(time=0.1), multipv=self.multipv)
@@ -89,12 +101,13 @@ class StockfishModelEvaluator(Logger):
                 move = self.rng.choice(moves)
             else:
                 c_save_time = time.time()
-                prob = self.mcts.search(board)
+                prob = self.mcts.search(board, StockfishModelEvaluator.get_last_states(state_history))
                 move_id = np.argmax(prob)
                 move = board.decode_move(move_id)
                 move = board.change_move_perspective(move)
                 computation_times.append(time.time() - c_save_time)
             board.push(move)
+            state_history.append(board.__copy__())
             node = node.add_variation(move)
 
             info = self.engine.analyse(board, chess.engine.Limit(time=0.5))
@@ -139,7 +152,7 @@ class StockfishModelEvaluator(Logger):
         plt.title(
             'Model vs Stockfish\n' +
             f'Model: {self.model_name}\n' +
-            f"MCTS: sim: {self.mcts.sim_count}, c: {self.mcts.c_param}, parallel: {self.mcts.max_parallel_computations}\n" +
+            f"MCTS: sim: {self.mcts.sim_count}, c: {self.mcts.c_param}\n" +
             f'Avg computation time (s): {round(np.mean(computation_times), 2)}'
         )
         plt.legend()
@@ -147,7 +160,7 @@ class StockfishModelEvaluator(Logger):
         plt.savefig(save_path)
         self.info("Evaluation plot saved to " + save_path)
 
-    def __create_comparison_plot(self, scores, mcts_opponent: AMCTS, save_path: str):
+    def __create_comparison_plot(self, scores, mcts_opponent, save_path: str):
         plt.figure(figsize=(10, 6))
         plt.plot(scores)
         plt.xlabel('Move Number')

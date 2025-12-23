@@ -55,6 +55,7 @@ class ParallelAMCTS(Logger):
         super().__init__()
         self.sim_count = sim_count
         self.number_of_processes = number_of_processes
+        self.c_param = c_param
 
         self.tree = np.zeros((MAX_CHILDREN_PER_NODE * sim_count) + 1, dtype=tree_dtype)
         self.tree_shm = shared_memory.SharedMemory(create=True, size=self.tree.nbytes)
@@ -74,7 +75,7 @@ class ParallelAMCTS(Logger):
         self.process_executor = ProcessPoolExecutor(
             max_workers=self.number_of_processes,
             initializer=init_worker,
-            initargs=(self.selection_lock, self.backpropagation_lock, self.expansion_lock, model, c_param, self.warmup_flag)
+            initargs=(self.selection_lock, self.backpropagation_lock, self.expansion_lock, model, self.c_param, self.warmup_flag)
         )
         self.debug(f"Created {self.number_of_processes} process for MCTS computations.")
 
@@ -102,6 +103,8 @@ class ParallelAMCTS(Logger):
 
     # history_states can contain up to last 2 states. It may improve context understanding, but it's optional.
     # this method can be used only for black perspective!
+    # state - current board (without changing perspective)
+    # history_states - list of previous states (without changing perspective)
     def search(self, state: BoardPlus, history_states: list):
         state = state.__copy__()
         state.change_perspective() # change from black to white (black perspective)

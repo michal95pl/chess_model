@@ -43,10 +43,18 @@ class AMCTS:
         self.model = model
         self.computation_list = []
         self.max_parallel_computations = max_parallel_computations
+        self.history = []
 
-    def search(self, state: BoardPlus):
+    def search(self, state: BoardPlus, history_states: list):
         state = state.__copy__()
         state.change_perspective()  # change to black perspective
+        self.history = []
+
+        for s in history_states:
+            s = s.__copy__()
+            s.change_perspective()
+            self.history.append(s)
+
         root = MCTSNode(state)
         for sim_number in range(self.sim_count):
             best_leaf = self.__selection(root)
@@ -75,14 +83,43 @@ class AMCTS:
         probabilities /= probabilities.sum()
         return probabilities
 
+    @staticmethod
+    def get_n_boards_state(node: MCTSNode, state_history, number_of_boards=3):
+        boards = []
+        perspective = False
+        state_history_index = 0
+        for _ in range(number_of_boards):
+            # above the root
+            if node is None:
+                if state_history_index < len(state_history):
+                    temp_state = state_history[state_history_index].__copy__()
+                    if perspective:
+                        temp_state.change_perspective()
+                    boards.append(temp_state.get_board_with_piece_index())
+                    state_history_index += 1
+                else:
+                    boards.append(BoardPlus.get_empty_board_with_piece_index())
+            else:
+                temp_state = node.state.__copy__()
+                if perspective:
+                    temp_state.change_perspective()
+                boards.append(temp_state.get_board_with_piece_index())
+                node = node.parent
+            perspective = not perspective
+        return boards
+
     @torch.no_grad()
     def __make_computation_batch(self):
-        encoded_states = np.array([node.state.encode() for node in self.computation_list], dtype=np.float32)
+        boards = np.array([AMCTS.get_n_boards_state(node, self.history, 3) for node in self.computation_list], dtype=np.int32)
+        encoded_states = np.eye(13)[boards]
+        encoded_states = encoded_states.transpose(0, 1, 4, 2, 3)
+        encoded_states = encoded_states.reshape(-1, 39, 8, 8)
+
         values, policies = self.model(
             torch.tensor(encoded_states, dtype=torch.float32).to(self.model.device)
         )
 
-        values = values.detach().squeeze(-1).cpu().numpy()
+        wdl = torch.softmax(values, dim=1).cpu().numpy()
         policies = torch.softmax(policies, dim=1).cpu().numpy()
         policies *= np.array([node.state.get_available_moves_mask() for node in self.computation_list])
 
@@ -92,8 +129,9 @@ class AMCTS:
                 self.__backpropagation(self.computation_list[i], -1)
                 continue
             policies[i] /= policies[i].sum()
+            reward = wdl[i][0] - wdl[i][2]
 
-            self.__backpropagation(self.computation_list[i], values[i])
+            self.__backpropagation(self.computation_list[i], reward)
             self.__expansion(self.computation_list[i], policies[i])
             self.computation_list[i].lock = False
         self.computation_list.clear()

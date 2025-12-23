@@ -28,7 +28,7 @@ class CommandsHandler(Logger):
             int(self.configs.get_config("num_value_filters"))
         )
         self.net.to(self.device)
-        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.001, weight_decay=1e-4)
+        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.01, weight_decay=1e-4)
 
     def __command_handler(self, command: list):
         if command[-1] == '':
@@ -195,4 +195,4 @@ class CommandsHandler(Logger):
         if bool(self.configs.get_config("multiprocessing_mcts")):
             return ParallelAMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'), self.configs.get_config('number_of_processes'))
         else:
-            return AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'), self.configs.get_config('parallel_computations')),
+            return AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'), self.configs.get_config('parallel_computations'))
