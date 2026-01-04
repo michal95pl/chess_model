@@ -168,9 +168,9 @@ class ChessModel(Logger):
                 value, policy = net(boards)
                 policy = torch.softmax(policy, dim=1)
 
-                _ , top5 = policy.topk(10, dim=1)
+                _ , topk = policy.topk(10, dim=1)
                 moves = moves.view(-1, 1)
-                hits = (top5 == moves)
+                hits = (topk == moves)
                 rank_counts += hits.sum(dim=0).float()
                 total_samples += moves.size(0)
 

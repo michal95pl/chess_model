@@ -185,7 +185,7 @@ class AMCTS:
             move = node.state.decode_move(move_ids[i])
             board_temp = node.state.__copy__()
 
-            board_temp.better_push(move)
+            board_temp.push(move)
             board_temp.change_perspective()
 
             child_node = MCTSNode(board_temp, node, move_ids[i], policy_values[i])

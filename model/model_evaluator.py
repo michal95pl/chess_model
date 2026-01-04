@@ -111,7 +111,24 @@ class ModelEvaluator(Logger):
         plt.savefig(plot_path)
         self.info(f"Saved confusion matrix to {plot_path}")
 
-    def save_top_5_plot(self, model_name: str, buffer_size, batch_size, dataset_workers, plot_path: str = "topk_matrix"):
+    def save_top_5_plot(self, model_name: str, buffer_size, batch_size, dataset_workers, plot_path: str = "topk_accuracy"):
         plot_path += ".png"
-        rank_counts = ChessModel(self.device).get_policy_net_top_k(self.net, self.test_data_folder_path, buffer_size, batch_size, dataset_workers)
-        print(rank_counts)
+        rank_counts = ChessModel(self.device).get_policy_net_top_k(self.net, self.test_data_folder_path, buffer_size,
+                                                                   batch_size, dataset_workers)
+
+        x_values = range(1, 11)
+
+        plt.plot(x_values, rank_counts, marker='o')
+
+        for x, y in zip(x_values, rank_counts):
+            plt.text(x, y + 0.02, f'{y:.2f}', ha='center', va='bottom', fontsize=9)
+
+        plt.title('Top-10 Accuracy for Policy Network\n' +
+                  f'Model: {model_name}')
+        plt.xticks(x_values)
+        plt.xlabel('Top K')
+        plt.ylabel('Accuracy')
+
+        plt.ylim(0, 1.1)
+        plt.savefig(plot_path)
+        self.info(f"Saved top-k accuracy plot to {plot_path}")

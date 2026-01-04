@@ -50,23 +50,32 @@ class StockfishModelEvaluator(Logger):
         node = game
 
         scores = []
+        state_history = []
         while not board.is_game_over():
             if board.turn == chess.WHITE:
+
+                temp_history = []
+                for state in StockfishModelEvaluator.get_last_states(state_history):
+                    temp = state.__copy__()
+                    temp.change_perspective()
+                    temp_history.append(temp)
+
                 temp_board = board.__copy__()
                 temp_board.change_perspective()
-                prob = opponent_mcts.search(temp_board)
+                prob = opponent_mcts.search(temp_board, temp_history)
                 move_id = np.argmax(prob)
                 move = temp_board.decode_move(move_id)
             else:
-                prob = self.mcts.search(board)
+                prob = self.mcts.search(board, StockfishModelEvaluator.get_last_states(state_history))
                 move_id = np.argmax(prob)
                 move = board.decode_move(move_id)
                 move = board.change_move_perspective(move)
-            board.better_push(move)
+            board.push(move)
+            state_history.append(board.__copy__())
             node = node.add_variation(move)
 
             if not board.is_game_over():
-                info = self.engine.analyse(board, chess.engine.Limit(time=0.5))
+                info = self.engine.analyse(board, chess.engine.Limit(time=1))
                 score = info['score'].black().score(mate_score=10000)
                 scores.append(score)
         self.__create_comparison_plot(scores, opponent_mcts, save_path + "/comparison_plot.png")

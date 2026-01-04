@@ -29,20 +29,20 @@ backpropagation_lock_g = None
 expansion_lock_g = None
 computation_worker_g = None
 warmup_flag_g = None
-def init_worker(selection_lock, backpropagation_lock, expansion_lock, model, c_param, warmup_flag):
+def init_worker(selection_lock, backpropagation_lock, expansion_lock, model, c_param, warmup_flag, device):
     global selection_lock_g
     global backpropagation_lock_g
     global expansion_lock_g
     global computation_worker_g
     global warmup_flag_g
-    print("init")
+
     selection_lock_g = selection_lock
     backpropagation_lock_g = backpropagation_lock
     expansion_lock_g = expansion_lock
 
     warmup_flag_g = warmup_flag
 
-    model.to('cuda')
+    model.to(device)
     model.eval()
     computation_worker_g = TreeComputationWorker(model, c_param)
 
@@ -75,13 +75,13 @@ class ParallelAMCTS(Logger):
         self.process_executor = ProcessPoolExecutor(
             max_workers=self.number_of_processes,
             initializer=init_worker,
-            initargs=(self.selection_lock, self.backpropagation_lock, self.expansion_lock, model, self.c_param, self.warmup_flag)
+            initargs=(self.selection_lock, self.backpropagation_lock, self.expansion_lock, model, self.c_param, self.warmup_flag, str(model.device))
         )
         self.debug(f"Created {self.number_of_processes} process for MCTS computations.")
 
-        self.debug("Warming up MCTS processes...")
+        self.info("Warming up MCTS processes...")
         self.warmup_processes()
-        self.debug("MCTS processes warmed up.")
+        self.info("MCTS processes warmed up.")
 
     def warmup_processes(self):
         futures = []

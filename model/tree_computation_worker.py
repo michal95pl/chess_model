@@ -173,7 +173,7 @@ class TreeComputationWorker:
             move = board_state.decode_move(move_ids[i])
             temp_board = board_state.__copy__()
 
-            temp_board.better_push(move)
+            temp_board.push(move)
             temp_board.change_perspective()
 
             tree[node_id]['children'][tree[node_id]['children_count']] = TreeComputationWorker.add_node(
