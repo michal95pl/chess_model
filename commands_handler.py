@@ -74,6 +74,8 @@ class CommandsHandler(Logger):
             if not self.is_model_loaded:
                 self.warning("Using untrained model. It's recommended to load a trained model before calculating top-k accuracy.")
             ModelEvaluator(command[1], self.device, self.net).save_top_5_plot(self.loaded_model_path, int(self.configs.get_config('buffer_size')), int(self.configs.get_config('batch_size')), int(self.configs.get_config('number_of_dataset_processes')))
+        elif (len(command) == 3 or len(command) == 2) and command[0] == "compare-neural-net-to-stockfish":
+            self.__compare_neural_net_to_stockfish(command)
         else:
             print("Unknown command. Type 'help' to see available commands.")
 
@@ -115,8 +117,9 @@ class CommandsHandler(Logger):
         print(" - compare-model-to-stockfish <num_games> [path] - Evaluate the model against Stockfish. Saves evaluation plot and games in path")
         print(" - show-loss <test_data_directory> <models_directory> [skip_factor] - Show loss plot for models in models_directory on test data")
         print(" - confusion-matrix <test_data_directory> - Save confusion matrix for value network on test data")
-        print(" - compare-mcts <num_simulations_opponent> <num_simulations_opponent> [path] - Compare the current loaded model with another MCTS. Saves comparison plot and game in path")
+        print(" - compare-mcts <num_simulations_opponent> <buffor-size> [path] - Compare the current loaded model with another MCTS (no multiprocess). Saves comparison plot and game in path")
         print(" - top-k-accuracy <test_data_directory> - Show top-k accuracy for policy network on test data")
+        print(" - compare-neural-net-to-stockfish <num_games> [path] - Evaluate neural network against Stockfish.")
 
     def __print_status(self):
         print("Computation device: " + str(self.device))
@@ -160,32 +163,44 @@ class CommandsHandler(Logger):
     def __compare_model_to_stockfish(self, command: list):
         eval = StockfishModelEvaluator(
             self.configs.get_config('stockfish_path'),
-            self.__get_mcts(),
+            self.loaded_model_path,
+            int(self.configs.get_config("stockfish_gen_moves")),
+            int(self.configs.get_config('evaluation_seed'))
+        )
+        mcts = self.__get_mcts()
+        if len(command) == 3:
+            eval.evaluate(mcts, int(command[1]), command[2])
+        else:
+            eval.evaluate(mcts, int(command[1]))
+
+    def __compare_neural_net_to_stockfish(self, command: list):
+        eval = StockfishModelEvaluator(
+            self.configs.get_config('stockfish_path'),
             self.loaded_model_path,
             int(self.configs.get_config("stockfish_gen_moves")),
             int(self.configs.get_config('evaluation_seed'))
         )
         if len(command) == 3:
-            eval.evaluate(int(command[1]), command[2])
+            eval.evaluate_model(int(command[1]), self.net ,command[2])
         else:
-            eval.evaluate(int(command[1]))
+            eval.evaluate_model(int(command[1]), self.net)
 
     def __compare_mcts(self, command: list):
         sme = StockfishModelEvaluator(
             self.configs.get_config('stockfish_path'),
-            AMCTS(self.configs.get_config('mcts_simulations'), self.net, self.configs.get_config('mcts_c_param'),
-                  self.configs.get_config('parallel_computations')),
             self.loaded_model_path,
             int(self.configs.get_config('evaluation_seed'))
         )
-
+        mcts = self.__get_mcts()
         if len(command) == 3:
             sme.compare_to(
+                mcts,
                 AMCTS(int(command[1]), self.net, self.configs.get_config('mcts_c_param'),
                       int(command[2]))
             )
         else:
             sme.compare_to(
+                mcts,
                 AMCTS(int(command[1]), self.net, self.configs.get_config('mcts_c_param'),
                       int(command[2])),
                 command[3]

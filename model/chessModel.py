@@ -56,7 +56,7 @@ class ChessModel(Logger):
 
                     loss_policy = torch.nn.functional.cross_entropy(policy, moves, label_smoothing=0.01)
                     loss_value = torch.nn.functional.cross_entropy(value, wins, label_smoothing=0.01)
-                    loss = loss_policy + loss_value
+                    loss = loss_policy + (2*loss_value)
 
                     loss.backward()
                     optimizer.step()
