@@ -38,7 +38,7 @@ class StockfishModelEvaluator(Logger):
         games_score = []
         for i in range(num_games):
             games_score.append(self.__evaluate_game(mcts, path + f"/game{i+1}.pgn"))
-        self.__create_mcts_stockfish_plot(random_model_scores, games_score, path + "/evaluation_plot.png")
+        self.__create_mcts_stockfish_plot(mcts, random_model_scores, games_score, path + "/evaluation_plot.png")
 
     def evaluate_model(self, num_games, model, path:str = "results"):
         if not os.path.exists(path):
@@ -167,7 +167,7 @@ class StockfishModelEvaluator(Logger):
                 move = self.rng.choice(moves)
             else:
                 c_save_time = time.time()
-                encoded_states = PGNDataset.get_boards_with_piece_index_from_board_history(state_history, False, 3)
+                encoded_states = PGNDataset.get_boards_with_piece_index_from_board_history(state_history, True, 3)
                 encoded_states = np.eye(13)[encoded_states]
                 encoded_states = encoded_states.transpose(0, 3, 1, 2)
                 encoded_states = encoded_states.reshape(39, 8, 8)
@@ -175,10 +175,14 @@ class StockfishModelEvaluator(Logger):
                     torch.tensor(encoded_states, dtype=torch.float32).to(model.device).unsqueeze(0)
                 )
                 policy = torch.softmax(policies, dim=1).cpu().numpy()[0]
-                policy *= np.array(board.get_available_moves_mask())
+                temp_board = board.__copy__()
+                temp_board.change_perspective()
+
+                policy *= np.array(temp_board.get_available_moves_mask())
                 policy /= policy.sum()
                 move_id = np.argmax(policy)
                 move = board.decode_move(move_id)
+                move = board.change_move_perspective(move)
 
                 computation_times.append(time.time() - c_save_time)
             board.push(move)
