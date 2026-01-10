@@ -94,7 +94,7 @@ class StockfishModelEvaluator(Logger):
                 info = self.engine.analyse(board, chess.engine.Limit(time=1))
                 score = info['score'].black().score(mate_score=10000)
                 scores.append(score)
-        self.__create_comparison_plot(scores, opponent_mcts, save_path + "/comparison_plot.png")
+        self.__create_comparison_plot(scores, mcts, opponent_mcts, save_path + "/comparison_plot.png")
         with open(save_path + '/comparison_game.pgn', 'w') as pgn_file:
             pgn_file.write(str(game))
         self.info("Saved comparison game to " + save_path + "/comparison_game.pgn")
@@ -257,7 +257,7 @@ class StockfishModelEvaluator(Logger):
         plt.savefig(save_path)
         self.info("Evaluation plot saved to " + save_path)
 
-    def __create_comparison_plot(self, scores, mcts_opponent, save_path: str):
+    def __create_comparison_plot(self, scores, mcts, mcts_opponent, save_path: str):
         plt.figure(figsize=(10, 6))
         plt.plot(scores)
         plt.xlabel('Move Number')
@@ -265,7 +265,7 @@ class StockfishModelEvaluator(Logger):
         plt.title(
             'Model vs op model\n' +
             f'Model: {self.model_name}\n' +
-            f"MCTS: sim: {self.mcts.sim_count}, c: {self.mcts.c_param}, parallel: {self.mcts.max_parallel_computations}\n" +
+            f"MCTS: sim: {mcts.sim_count}, c: {mcts.c_param}, parallel: {mcts.max_parallel_computations}\n" +
             f'Opponent MCTS: sim: {mcts_opponent.sim_count}, c: {mcts_opponent.c_param}, parallel: {mcts_opponent.max_parallel_computations}'
         )
         # plt.legend()
